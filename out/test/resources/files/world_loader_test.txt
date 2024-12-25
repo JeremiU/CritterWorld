@@ -1,0 +1,5 @@
+name worldname
+size 7 9
+rock 5 3
+food 2 2 1
+critter critter_loader_test.txt 5 5 2

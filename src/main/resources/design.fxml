@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Copyright (c) 2015, 2019, Gluon and/or its affiliates.
+  All rights reserved. Use is subject to license terms.
+
+  This file is available and licensed under the following license:
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  - Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  - Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in
+    the documentation and/or other materials provided with the distribution.
+  - Neither the name of Oracle Corporation nor the names of its
+    contributors may be used to endorse or promote products derived
+    from this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+
+<?import javafx.scene.Group?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox prefHeight="600" prefWidth="923.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.DisplayController">
+  <children>
+    <AnchorPane maxHeight="-1.0" maxWidth="-1.0" prefHeight="600.0" prefWidth="954.0" VBox.vgrow="ALWAYS">
+      <children>
+            <ButtonBar fx:id="loadCritter" layoutX="204.0" layoutY="546.0" prefHeight="40.0" prefWidth="705.0">
+              <buttons>
+                  <Button mnemonicParsing="false" onAction="#displayWorld" text="Print" />
+                  <TextField fx:id="playRate" prefHeight="26.0" prefWidth="100.0" promptText="Timer Interval" />
+                <Button mnemonicParsing="false" onAction="#pauseTimer" text="Pause" />
+                  <Button mnemonicParsing="false" onAction="#singleStep" text="Step" />
+                  <TextField id="critterNumber" prefHeight="26.0" prefWidth="100.0" promptText="Critter number" />
+                  <MenuButton mnemonicParsing="false" text="Load World">
+                    <items>
+                      <MenuItem mnemonicParsing="false" onAction="#newWorld" text="New World" />
+                      <MenuItem mnemonicParsing="false" onAction="#chooseFile" text="Load File" />
+                    </items>
+                  </MenuButton>
+              </buttons>
+            </ButtonBar>
+            <Label fx:id="steps_number" layoutX="14.0" layoutY="14.0" prefHeight="18.0" prefWidth="100.0" text="Steps: 0" />
+            <Label fx:id="critters_number" layoutX="14.0" layoutY="32.0" prefHeight="18.0" prefWidth="100.0" text="Critters: 0" />
+            <StackPane layoutX="225.0" layoutY="14.0" prefHeight="500.0" prefWidth="680.0">
+               <children>
+                  <Group id="mainGroup" />
+               </children>
+            </StackPane>
+            <Label fx:id="information" alignment="TOP_LEFT" layoutX="14.0" layoutY="514.0" prefHeight="75.0" prefWidth="223.0" text="${'ZOOM - mousewheel\nPAN - WASD\nClick on Hex to see info.'}" />
+            <Label fx:id="displayConsole" alignment="TOP_LEFT" layoutX="14.0" layoutY="50.0" prefHeight="235.0" prefWidth="211.0" style="-fx-font-weight: 800;" text="Label" wrapText="true" />
+            <Button fx:id="loadCritter" layoutX="699.0" layoutY="519.0" mnemonicParsing="false" onAction="#loadCritterFile" prefHeight="26.0" prefWidth="100.0" text="Load Critter" />
+            <Button layoutX="368.0" layoutY="519.0" mnemonicParsing="false" onAction="#timerStart" prefHeight="26.0" prefWidth="100.0" text="Play" />
+      </children>
+    </AnchorPane>
+  </children>
+</VBox>
