@@ -5,7 +5,6 @@ import main.Util;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import static ast.Cmd.CmdType;
 import static model.Constants.MemoryConstants.POSTURE;
 
 public class Interpreter {
@@ -18,22 +17,17 @@ public class Interpreter {
         this.program = critter.getProgram();
     }
 
-    //Based on the rule required rule execution logic
-    //run the Interpreter and find the first rule whose condition
-    //is true. If this rule is just an update without an action then
-    //return false. If no rule's condition evaluates to true, return false
     public boolean run() {
         boolean actionUpdate = false;
         int numRules = ((ProgramImpl) program).numRules();
 
         for (int i = 0; i < numRules; i++) {
             Rule rule = ((ProgramImpl) program).getRule(i);
-            //for this rule evaluate the condition
-            boolean condPassed = parseCond((Condition) rule.nodeAt(1));
-            System.out.println(rule.nodeAt(1) + " --> " + rule.nodeAt(2) + ";");
-            //if the condition is true, evaluate the command
-            if (!condPassed) return false;
-            //execute all the commands one after the other
+            boolean cmdCondition = parseCond((Condition) rule.nodeAt(1));
+
+            if (!cmdCondition) return false;
+            System.out.println("cond true!");
+
             for (int c = 0; c < rule.cmdCnt(); c++) {
                 parseCommand(rule.getCommand(c));
                 if (rule.getCommand(c).getType() != Cmd.CmdType.UPDATE) {
@@ -42,55 +36,46 @@ public class Interpreter {
                     break;
                 }
             }
+            this.critter.setLastRule(rule, i);
+            System.out.println("LAST RULE: ("+i+") " + this.critter.getLastRuleString());
         }
         return actionUpdate;
     }
 
     public boolean parseCond(Condition cond) {
-        if (cond instanceof ConditionBinary) {
-            ConditionBinary binCond = (ConditionBinary) cond;
+        if (cond instanceof ConditionBinary binCond) {
             boolean a = parseCond((Condition) cond.nodeAt(1));
             boolean b = parseCond((Condition) cond.nodeAt(2));
             if (binCond.getOpr() == ConditionBinary.BinCondOperator.OR) return a || b;
             if (binCond.getOpr() == ConditionBinary.BinCondOperator.AND) return a && b;
         }
-        return parseRel((ConditionRelation) cond);
+        if (cond instanceof ConditionRelation relCond) return parseRel(relCond);
+        return false; //can only be a binary or relation condition
     }
 
     public boolean parseRel(ConditionRelation relation) {
-        switch (relation.getOpr()) {
-            case EQ:
-                return parseExpr(relation.getLeft()) == parseExpr(relation.getRight());
-            case GE:
-                return parseExpr(relation.getLeft()) >= parseExpr(relation.getRight());
-            case GT:
-                return parseExpr(relation.getLeft()) > parseExpr(relation.getRight());
-            case LE:
-                return parseExpr(relation.getLeft()) <= parseExpr(relation.getRight());
-            case LT:
-                return parseExpr(relation.getLeft()) < parseExpr(relation.getRight());
-            case NE:
-                return parseExpr(relation.getLeft()) != parseExpr(relation.getRight());
-        }
-        return false;
+        return switch (relation.getOpr()) {
+            case EQ -> parseExpr(relation.getLeft()) == parseExpr(relation.getRight());
+            case GE -> parseExpr(relation.getLeft()) >= parseExpr(relation.getRight());
+            case GT -> parseExpr(relation.getLeft()) > parseExpr(relation.getRight());
+            case LE -> parseExpr(relation.getLeft()) <= parseExpr(relation.getRight());
+            case LT -> parseExpr(relation.getLeft()) < parseExpr(relation.getRight());
+            case NE -> parseExpr(relation.getLeft()) != parseExpr(relation.getRight());
+        };
     }
 
     public int parseExpr(Expr expr) {
-        if (expr instanceof ExprBinary) {
-            ExprBinary binExpr = (ExprBinary) expr;
-            switch (binExpr.getOpr()) {
-                case PLUS:
-                    return parseExpr(binExpr.getLeft()) + parseExpr(binExpr.getRight());
-                case MINUS:
-                    return parseExpr(binExpr.getLeft()) - parseExpr(binExpr.getRight());
-                case MUL:
-                    return parseExpr(binExpr.getLeft()) * parseExpr(binExpr.getRight());
-                case DIV:
-                    if (parseExpr(binExpr.getRight()) == 0) return 0;
-                    return Math.floorDiv(parseExpr(binExpr.getLeft()), parseExpr(binExpr.getRight()));
-                case MOD:
-                    return Util.properMod(parseExpr(binExpr.getLeft()), parseExpr(binExpr.getRight()));
-            }
+        if (expr instanceof ExprBinary binExpr) {
+            return switch (binExpr.getOpr()) {
+                case PLUS -> parseExpr(binExpr.getLeft()) + parseExpr(binExpr.getRight());
+                case MINUS -> parseExpr(binExpr.getLeft()) - parseExpr(binExpr.getRight());
+                case MUL -> parseExpr(binExpr.getLeft()) * parseExpr(binExpr.getRight());
+                case DIV -> {
+                    if (parseExpr(binExpr.getRight()) == 0) yield 0;
+                    yield Math.floorDiv(parseExpr(binExpr.getLeft()), parseExpr(binExpr.getRight()));
+                }
+                case MOD -> Util.properMod(parseExpr(binExpr.getLeft()), parseExpr(binExpr.getRight()));
+            };
         }
         if (expr instanceof ExprMem) {
             int index = parseExpr(((ExprMem) expr).getIndex());
@@ -99,73 +84,57 @@ public class Interpreter {
         }
         if (expr instanceof ExprNum) return ((ExprNum) expr).getVal();
 
-        if (expr instanceof ExprSensor) {
-            ExprSensor sensorExpr = (ExprSensor) expr;
-            switch (sensorExpr.getSensorType()) {
-                case AHEAD: {
+        if (expr instanceof ExprSensor sensorExpr) {
+            return switch (sensorExpr.getSensorType()) {
+                case AHEAD -> {
                     AtomicReference<Expr> sensorIndex = new AtomicReference<>();
                     sensorExpr.getIndex().thenDo(sensorIndex::set);
-
                     int index = parseExpr(sensorIndex.get());
                     if (index < 0) index = 0;
-                    return critter.ahead(index);
+                    yield critter.ahead(index);
                 }
-                case SMELL:
-                    return critter.smell(-1);
-                case NEARBY: {
+                case SMELL -> critter.smell(-1);
+                case NEARBY -> {
                     AtomicReference<Expr> sensorIndex = new AtomicReference<>();
                     sensorExpr.getIndex().thenDo(sensorIndex::set);
 
-                    return critter.nearby(parseExpr(sensorIndex.get()));
+                    yield critter.nearby(parseExpr(sensorIndex.get()));
                 }
-                case RANDOM:
+                case RANDOM -> {
                     AtomicReference<Expr> sensorIndex = new AtomicReference<>();
                     sensorExpr.getIndex().thenDo(sensorIndex::set);
-
-                    return critter.random(parseExpr(sensorIndex.get()));
-            }
+                    yield critter.random(parseExpr(sensorIndex.get()));
+                }
+            };
         }
         return 0;
     }
 
     public void parseCommand(Cmd cmd) {
-        if (cmd instanceof CmdServe) {
-            CmdServe serveCmd = (CmdServe) cmd;
-            int energy = parseExpr(serveCmd.getIndex());
-            if (energy < 0) energy = 0;
+        if (cmd instanceof CmdServe serveCmd) {
+            int energy = Math.min(parseExpr(serveCmd.getIndex()), 0);
             critter.serve(energy);
-        } else if (cmd instanceof CmdUpdate) {
-            CmdUpdate updateCmd = (CmdUpdate) cmd;
+        } else if (cmd instanceof CmdUpdate updateCmd) {
             int index = parseExpr(updateCmd.getMemIndex());
             int value = parseExpr(updateCmd.getValue());
             if (index < POSTURE) return; //none of the values before posture can be assigned directly
-            if (index == POSTURE && value < 0 || value > 99)
-                return; //POSTURE is assignable only to values between 0 and 99.
+
+            if (index == POSTURE && value < 0) value = 0;
+            if (index == POSTURE && value > 99) value = 99;
             critter.setMem(index, value);
         } else {
-            //this could be a switch statement, but this is more compact and functionally equivalent
             switch (cmd.getType()) {
-                case BUD: critter.bud(); break;
-                case EAT: critter.eat(); break;
-                case GROW: critter.grow(); break;
-                case LEFT: critter.turnLeft(); break;
-                case RIGHT: critter.turnRight(); break;
-                case BACKWARD: critter.moveBackward(); break;
-                case FORWARD: critter.moveForward(); break;
-                case MATE: critter.mate(); break;
-                case WAIT: critter.rest(); break;
-                case ATTACK: critter.attack(); break;
+                case BUD -> critter.bud();
+                case EAT -> critter.eat();
+                case GROW -> critter.grow();
+                case LEFT -> critter.turnLeft();
+                case RIGHT -> critter.turnRight();
+                case BACKWARD -> critter.moveBackward();
+                case FORWARD -> critter.moveForward();
+                case MATE -> critter.mate();
+                case WAIT -> critter.rest();
+                case ATTACK -> critter.attack();
             }
         }
     }
-//    public static void main(String[] args) {
-//        //TODO: check if this is OK enough for testing
-//        World currentWorld = new World();
-//
-//
-//        Critter cr = CritterFactory.fromFile(currentWorld, "files/critter_loader_test_1.txt");
-//
-//        Interpreter i = new Interpreter(cr);
-//        i.run();
-//    }
 }

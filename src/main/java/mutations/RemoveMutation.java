@@ -3,6 +3,7 @@ package mutations;
 import ast.*;
 import cms.util.maybe.Maybe;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -23,6 +24,7 @@ public class RemoveMutation implements Mutation {
     public Maybe<Program> apply(Program program, Node node) {
         if (!canApply(node)) return Maybe.none();
 
+        //node.getCategory() == NodeCategory.
         if (node instanceof Rule) removeRule((Rule) node);
         if (node instanceof Condition) removeCondition((Condition) node);
         if (node instanceof Cmd) removeCommand((Cmd) node);
@@ -107,14 +109,11 @@ public class RemoveMutation implements Mutation {
             }
         }
 
-        // attach the child condition to the parent and remove this condition
         Node parent = parent(c);
         ((AbstractNode) parent).addChild(grandChild);
 
-        // remove the reference of this condition to its parent
         c.setParent(null);
 
-        // if parent is a Rule set grand child as the condition
         if (parent instanceof Rule) {
             Rule r = (Rule) parent;
             r.setCondition(grandChild);
@@ -125,8 +124,6 @@ public class RemoveMutation implements Mutation {
         if (!(e instanceof ExprBinary)) return;
         Node parent = parent(e);
 
-        //get the left child of this BinaryOperation and add it to the
-        //parent
         Expr left = ((ExprBinary) e).getLeft();
         //the parent will be a relation or a BinaryOperation
         if (parent instanceof ConditionRelation) {
@@ -147,11 +144,13 @@ public class RemoveMutation implements Mutation {
         AtomicReference<Node> parent = new AtomicReference<>();
         node.getParent().thenDo(parent::set);
 
+        List<Node> children = parent.get().getChildren();
+
         // remove this BinaryOperation from the children list of the parent
-        for (int i = 0; i < parent.get().getChildren().size(); i++) {
-            Node child = parent.get().getChildren().get(i);
+        for (int i = 0; i < children.size(); i++) {
+            Node child = children.get(i);
             if (child.equals(node)) {
-                parent.get().getChildren().remove(i);
+                children.remove(i);
                 break;
             }
         }

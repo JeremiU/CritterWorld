@@ -6,6 +6,7 @@ import parse.ParserImpl;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.nio.file.Paths;
 
 /**
  * Console app for parsing & mutating a given program
@@ -16,8 +17,8 @@ import java.io.FileReader;
 public class ParseAndMutateApp {
 
     public static void main(String[] args) {
-//        args = new String[]{"--mutate", "100", "/Users/jeremi/Documents/Code/A4release/src/test/resources/files/mutated_critter_1.txt"
-//        };
+        args = new String[]{"--mutate", "100", "/src/test/resources/files/mutated_critter_1.txt"
+        };
 
         int n = 0;
         String file;
@@ -32,8 +33,11 @@ public class ParseAndMutateApp {
                 throw new IllegalArgumentException();
             }
 
+            String currentDirectory = Paths.get("").toAbsolutePath().toString();
+            System.out.println("Current directory: " + currentDirectory);
+
             ParserImpl parser = new ParserImpl();
-            Program program = parser.parse(new FileReader(file));
+            Program program = parser.parse(new FileReader(currentDirectory + file));
 
             System.out.println("-".repeat(80) + "\n");
             System.out.println(" ".repeat(28) + "Printing initial program" + " ".repeat(28) + "\n");

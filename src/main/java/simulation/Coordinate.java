@@ -9,32 +9,29 @@ import static model.Constants.DirectionConstants.*;
  * This class is used in {@link Hex} to represent its location within the
  * world matrix.
  */
-public class Coordinate {
-
-    private final int column, row;
+public record Coordinate(int column, int row) {
 
     /**
      * Create new Coordinate from column & row
-     * <p>
      * Invariant: column >= 0, row >= 0
      */
-    public Coordinate(int column, int row) {
+    public Coordinate {
         assert (column >= 0 && row >= 0);
-        this.column = column;
-        this.row = row;
     }
 
     /**
      * Get the Coordinate's column (x position)
      */
-    public int getColumn() {
+    @Override
+    public int column() {
         return column;
     }
 
     /**
      * Get the Coordinate's row (y position)
      */
-    public int getRow() {
+    @Override
+    public int row() {
         return row;
     }
 
@@ -42,7 +39,6 @@ public class Coordinate {
      * Get coordinate that the direction is pointing to
      */
     public Coordinate getCoordinateAt(int direction) {
-        if (Util.properMod(direction, DIR_AMOUNT) == TOP) return getTop();
         if (Util.properMod(direction, DIR_AMOUNT) == TOP_RIGHT) return getTopRight();
         if (Util.properMod(direction, DIR_AMOUNT) == BOTTOM_RIGHT) return getBottomRight();
         if (Util.properMod(direction, DIR_AMOUNT) == BOTTOM) return getBottom();
@@ -55,28 +51,27 @@ public class Coordinate {
         return "(" + column + ", " + row + ")";
     }
 
-    // Relative position getters
-    private Coordinate getTop() {
+    public Coordinate getTop() {
         return new Coordinate(column, row + 2);
     }
 
-    private Coordinate getTopRight() {
+    public Coordinate getTopRight() {
         return new Coordinate(column + 1, row + 1);
     }
 
-    private Coordinate getBottomRight() {
+    public Coordinate getBottomRight() {
         return new Coordinate(column + 1, row - 1);
     }
 
-    private Coordinate getBottom() {
+    public Coordinate getBottom() {
         return new Coordinate(column, row - 2);
     }
 
-    private Coordinate getBottomLeft() {
+    public Coordinate getBottomLeft() {
         return new Coordinate(column - 1, row - 1);
     }
 
-    private Coordinate getTopLeft() {
+    public Coordinate getTopLeft() {
         return new Coordinate(column - 1, row + 1);
     }
 }

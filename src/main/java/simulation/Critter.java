@@ -4,7 +4,6 @@ import ast.Program;
 import ast.ProgramImpl;
 import ast.Rule;
 import cms.util.maybe.Maybe;
-import controller.ControllerFactory;
 import main.Util;
 import model.ReadOnlyCritter;
 
@@ -21,8 +20,6 @@ import static model.Constants.MemoryConstants.*;
  * Represents a critter in the world
  */
 public class Critter implements ReadOnlyCritter {
-
-    // Stores the world that the critter is currently inside
     private World currentWorld;
 
     private final String species;
@@ -31,18 +28,17 @@ public class Critter implements ReadOnlyCritter {
 
     private final int[] mem;
 
-    // Represents the AST / Critter ruleset for this Critter.
     private final ProgramImpl program;
 
-    // Full constructor
+    private Rule lastRule;
+    private int lastRuleLine = 0;
+
     public Critter(World currentWorld, String species, int memSize, int defense, int offense, int size, int energy, int posture, ProgramImpl program) {
-        //ensure values are within correct bounds
         if (memSize < MIN_MEMORY) memSize = MIN_MEMORY;
         if (defense < 1) defense = 1;
         if (offense < 1) offense = 1;
-        if (energy < 1) energy = 1;
-        if (posture > 99) posture = 99;
-        if (posture < 0) posture = 0;
+        if (energy < 1) energy = INITIAL_ENERGY;
+        if (posture > 99 || posture < 0) posture = INITIAL_POSTURE;
 
         mem = new int[memSize];
         mem[MEM_SIZE] = memSize;
@@ -56,10 +52,8 @@ public class Critter implements ReadOnlyCritter {
 
         this.currentWorld = currentWorld;
         direction = Util.randomInt(DIR_AMOUNT);
-        //pass number?
     }
 
-    // Changing the critter's position
     public void setLocation(Coordinate coordinate) {
         this.location = coordinate;
     }
@@ -68,49 +62,53 @@ public class Critter implements ReadOnlyCritter {
         this.location = new Coordinate(column, row);
     }
 
-    // Basic DIRECTION methods
     public void setDirection(int direction) {
         this.direction = direction;
     }
 
-    // Basic getters
     public int getColumn() {
-        return location.getColumn();
+        return location.column();
     }
 
     public int getRow() {
-        return location.getRow();
+        return location.row();
     }
 
     public String getSpecies() {
         return species;
     }
 
-    @Override //returns copy
+    @Override
     public int[] getMemory() {
         return Arrays.copyOf(this.mem, this.mem.length);
     }
 
     @Override
     public String getProgramString() {
-        String pgmString = "";
-        if (this.program != null && this.program.numRules() > 0) {
-            StringBuilder prettyPgm = new StringBuilder();
-            this.program.prettyPrint(prettyPgm);
-            return prettyPgm.toString();
-        }
-        return pgmString;
+        if (this.program == null || this.program.numRules() < 0) return "";
+
+        StringBuilder prettyPgm = new StringBuilder();
+        this.program.prettyPrint(prettyPgm);
+        return prettyPgm.toString();
     }
 
     @Override
     public Maybe<String> getLastRuleString() {
-        if (this.program == null || this.program.numRules() == 0) return Maybe.none();
+        if (this.lastRule == null) return Maybe.none();
 
-        int numRules = this.program.numRules();
-        Rule lastRule = this.program.getRule(numRules - 1);
         StringBuilder prettyRule = new StringBuilder();
         lastRule.prettyPrint(prettyRule);
+
         return Maybe.from(prettyRule.toString());
+    }
+
+    public void setLastRule(Rule rule, int line) {
+        this.lastRule = rule;
+        this.lastRuleLine = line;
+    }
+
+    public int getLastRuleLine() {
+        return lastRuleLine;
     }
 
     public int getMemSize() {
@@ -125,30 +123,21 @@ public class Critter implements ReadOnlyCritter {
         return this.mem[POSTURE];
     }
 
-    // Method runs every time-step
     public void tick() {
-        System.out.println(species + " was ticked");
-        //execute the rules of this critter
-        //multiple passes will be made until an action command is
-        //executed. The number of passes made will be saved in mem[5]
-        //If the number of passes reach 999 the critter will go into a
-        //wait state
         Interpreter ip = new Interpreter(this);
         boolean actionUpdate = ip.run();
         this.mem[PASS] = 1;
-        while (this.mem[PASS] < 999 && !actionUpdate) {
+        while (this.mem[PASS] < MAX_RULES_PER_TURN && !actionUpdate) {
             actionUpdate = ip.run();
             this.mem[PASS]++;
         }
-        System.out.println("Number of passes: " + this.mem[PASS]);
+        rest();
+        this.currentWorld.addFood();
     }
 
     public int getComplexity() {
         return getProgram().numRules() * RULE_COST + (mem[OFFENSE] + mem[DEFENSE] * ABILITY_COST);
     }
-
-    // Critter ACTIONS
-    // These are called by the interpreter
 
     /**
      * The critter waits until the next turn without doing anything except absorbing solar energy.
@@ -254,7 +243,7 @@ public class Critter implements ReadOnlyCritter {
         enemy.decrementEnergy(damage);
     }
 
-    //the function p(x) as described in §10, used to simplify damage = ...
+    //the function p(x) as described in §10, used to simplify damage
     private double p(double x) {
         return 1 / (1 + Math.exp(-x));
     }
@@ -275,22 +264,20 @@ public class Critter implements ReadOnlyCritter {
      * it with the same genome (possibly with some random mutations).
      */
     public void bud() {
+        System.out.println("bud start");
         if (!decrementEnergy(BUD_COST * this.getComplexity())) return;
+        System.out.println("bud start 2");
 
-        //new Critter is created and placed directly
-        //behind this critter
         //Random mutation is performed on this Critter's program
         Program pc = (Program) this.program.clone();
-        //perform a random mutation on the program
         ProgramImpl mpc = (ProgramImpl) pc.mutate();
-        //set up the attributes of the child as per the specification
-        Critter child = new Critter(currentWorld, species, mem[MEM_SIZE], mem[DEFENSE], mem[OFFENSE], INITIAL_BIRTHED_SIZE, INITIAL_ENERGY, 0, mpc);
-        //place the child behind this critter
-        //need to handle the case when this critter is on the edge of the world
-        int row = location.getRow();
-        int col = location.getColumn();
-        //add the child at the specified location in this critter's world
-        currentWorld.insertCritterAtLocation(child, this.location.getRow(), this.location.getColumn() - 2);
+        Critter child = new Critter(currentWorld, species, mem[MEM_SIZE], mem[DEFENSE], mem[OFFENSE], INITIAL_SIZE, INITIAL_ENERGY, INITIAL_POSTURE, mpc);
+
+        Coordinate coord = location.getBottom();
+        if (currentWorld.hexAt(coord).getType() == Hex.HexType.INVALID) coord = location.getTop();
+
+        currentWorld.insertCritterAtLocation(child, coord.row(), coord.column());
+        System.out.println("bud done");
     }
 
     public void mate() {
@@ -298,7 +285,6 @@ public class Critter implements ReadOnlyCritter {
         if (nearbyHex.getType() != Hex.HexType.CRITTER) return;
 
         Critter partner = nearbyHex.getCritter();
-        //randomly choose attributes(0-2) from one of the two parents
         boolean thisIsMainPartner = Util.randomInt(2) == 1;
         int[] inheritedMem = thisIsMainPartner ? this.mem : partner.mem;
 
@@ -315,19 +301,10 @@ public class Critter implements ReadOnlyCritter {
             father = this.program;
         }
 
-        //get rules in sequence from the father and mother alternatively
-        for (int i = 0; i < mother.numRules(); i++) {
-            Rule cr;
-            if (i % 2 == 0) {
-                cr = (Rule) mother.getRule(i).clone();
-            } else {
-                cr = (Rule) father.getRule(i).clone();
-            }
-            cProgram.addRule(cr);
-        }
+        for (int i = 0; i < mother.numRules(); i++)
+            cProgram.addRule((i % 2 == 0) ? (Rule) mother.getRule(i).clone() : (Rule) father.getRule(i).clone());
 
-        //set up the attributes of the child as per the specification
-        Critter child = new Critter(currentWorld, species, inheritedMem[MEM_SIZE], inheritedMem[DEFENSE], inheritedMem[OFFENSE], INITIAL_BIRTHED_SIZE, INITIAL_ENERGY, INITIAL_BIRTHED_POSTURE, cProgram);
+        Critter child = new Critter(currentWorld, species, inheritedMem[MEM_SIZE], inheritedMem[DEFENSE], inheritedMem[OFFENSE], INITIAL_SIZE, INITIAL_ENERGY, INITIAL_POSTURE, cProgram);
 
         //place the child behind one of the parents chosen randomly
         Hex behindHex;
@@ -358,7 +335,6 @@ public class Critter implements ReadOnlyCritter {
      */
     public int nearby(int dir) {
         Hex nearbyHex = currentWorld.hexAt(location.getCoordinateAt(dir));
-        System.out.println("nearby: " + nearbyHex.getCoordinate());
         return nearbyHex.evaluate(this);
     }
 
@@ -382,7 +358,7 @@ public class Critter implements ReadOnlyCritter {
         return currentWorld.hexAt(coordinate);
     }
 
-    private class FringeHex {
+    private static class FringeHex {
         Hex hx;
         boolean visited;
         int turns;
@@ -414,13 +390,10 @@ public class Critter implements ReadOnlyCritter {
      * @return 1000 · distance + direction
      */
     public int smell(int distance) {
-        int cost = 1000000;
-        if (distance > MAX_SMELL_DISTANCE) {
-            distance = MAX_SMELL_DISTANCE;
-        }
-        //fringes is a list of lists
+        int cost = 1_000_000;
+        distance = Math.max(distance, MAX_SMELL_DISTANCE);
+
         List<ArrayList<FringeHex>> fringes = new ArrayList<>();
-        //list of visited FringeHex's
         List<FringeHex> visitedList = new ArrayList<>();
         //add this critter's hex to fringe[0]
         ArrayList<FringeHex> fringe = new ArrayList<>();
@@ -447,12 +420,8 @@ public class Critter implements ReadOnlyCritter {
                 //and are not blocked
                 for (int dir = 0; dir < 6; dir++) {
                     Coordinate neighborCoordinate = cFhx.hx.getCoordinate().getCoordinateAt(dir);
-                    //skip invalid coordinates. These are typically there at the edges
-                    //of the world
-                    if (!Hex.isValidHexCoordinate(neighborCoordinate.getColumn(), neighborCoordinate.getRow())) {
-                        continue;
-                    }
-                    //if the neighbor coordinate is valid, get the neighbor hex
+                    if (!Hex.isValidHexCoordinate(neighborCoordinate.column(), neighborCoordinate.row())) continue;
+
                     Hex neighborHex = this.currentWorld.hexAt(neighborCoordinate);
                     //if this neighbor has not been visited and is not blocked
                     //add it to the next fringe
@@ -471,13 +440,10 @@ public class Critter implements ReadOnlyCritter {
                             //critter has to make to get to this FringeHex
                             if (previousFringeIndex == 0) {
                                 nFhx.initialTurnDirection = computeInitialTurnDirection(cFhx.direction, dir);
-                                nFhx.turns += computeTurns(cFhx.direction, dir);
-                            } else {
-                                nFhx.turns += computeTurns(cFhx.direction, dir);
                             }
+                            nFhx.turns += computeTurns(cFhx.direction, dir);
                         }
                         nFhx.direction = dir;
-                        //add this neighbor to the next fringe
                         nextFringe.add(nFhx);
                         //if food has been found
                         //then need to stop looking
@@ -499,18 +465,14 @@ public class Critter implements ReadOnlyCritter {
             //then it means that we can get from their to the food
             //use neighbor as a candidate for cost computation
             ArrayList<FringeHex> foodFringe = fringes.get(foodFringeIndex);
-            for (int i = 0; i < foodFringe.size(); i++) {
-                FringeHex foodFhx = foodFringe.get(i);
+            for (FringeHex foodFhx : foodFringe) {
                 if (foodFhx.hx.getType() == Hex.HexType.FOOD) {
                     //get all the neighbors of this food hex
                     //look for each neighbor in the previous fringe list
                     for (int dir = 0; dir < 6; dir++) {
                         Coordinate cFhxCoordinate = foodFhx.hx.getCoordinate().getCoordinateAt(dir);
-                        //skip invalid coordinates. These are typically there at the edges
-                        //of the world
-                        if (!Hex.isValidHexCoordinate(cFhxCoordinate.getColumn(), cFhxCoordinate.getRow())) {
-                            continue;
-                        }
+                        if (!Hex.isValidHexCoordinate(cFhxCoordinate.column(), cFhxCoordinate.row())) continue;
+
                         //if the neighbor coordinate is valid, get the neighbor hex
                         Hex neighborHex = this.currentWorld.hexAt(cFhxCoordinate);
                         FringeHex nFhx = new FringeHex(neighborHex);
@@ -525,7 +487,6 @@ public class Critter implements ReadOnlyCritter {
                                 foodDist += 1;
                                 foodCost = foodDist * 100;
                             }
-                            //add the initial turn
                             foodCost += nFhx.initialTurnDirection;
 
                             System.out.println("Food cost: " + foodCost + " for (" + nFhx.hx.getType() + "," + nFhx.hx.getColumn() + "," + nFhx.hx.getRow() + "," + nFhx.visited + "," + nFhx.turns + "," + nFhx.direction + "," + nFhx.initialTurnDirection + ")" + "(Food Hex=" + foodFhx.hx.getColumn() + "," + foodFhx.hx.getRow() + ")");
@@ -541,10 +502,8 @@ public class Critter implements ReadOnlyCritter {
             }
         }
 
-        if (selectedFoodFhx != null) {
+        if (selectedFoodFhx != null)
             System.out.println("Selected food hex: (" + selectedFoodFhx.hx.getColumn() + "," + selectedFoodFhx.hx.getRow() + ")");
-        }
-
         return cost;
     }
 
@@ -567,8 +526,6 @@ public class Critter implements ReadOnlyCritter {
         return (ProgramImpl) program.clone();
     }
 
-
-    //temp method, should be replaced since not read-only
     public void setMem(int index, int value) {
         this.mem[index] = value;
     }
@@ -617,70 +574,39 @@ public class Critter implements ReadOnlyCritter {
         int direction = 0;
         for (int dir = 0; dir < 6; dir++) {
             Coordinate dirCoordinate = from.hx.getCoordinate().getCoordinateAt(dir);
-            //skip invalid coordinates. These are typically there at the edges
-            //of the world
-            if (!Hex.isValidHexCoordinate(dirCoordinate.getColumn(), dirCoordinate.getRow())) {
-                continue;
-            }
+            if (!Hex.isValidHexCoordinate(dirCoordinate.column(), dirCoordinate.row())) continue;
+
             Hex neighborHex = this.currentWorld.hexAt(dirCoordinate);
             if ((neighborHex.getColumn() == to.hx.getColumn()) && (neighborHex.getRow() == to.hx.getRow())) {
                 direction = dir;
                 break;
             }
         }
-
         return direction;
     }
 
     private int computeInitialTurnDirection(int currentDir, int targetDir) {
         int turns = 0;
-        int initialTurnDirection = 0;
-        boolean leftTurn = false;
-        if ((currentDir - targetDir) > 0) {
-            leftTurn = true;
-        }
+        boolean leftTurn = (currentDir - targetDir) > 0;
         int dirDiff = Math.abs(currentDir - targetDir);
-        //if the difference is more than 3 then
-        //flip the direction to reduce the number
-        //of turns
-        if (dirDiff > 3) {
-            leftTurn = !leftTurn;
-        } else {
-            turns = dirDiff;
-        }
 
-        if (leftTurn) {
-            initialTurnDirection = 6 - turns;
-        } else {
-            initialTurnDirection = turns;
-        }
+        if (dirDiff > 3) leftTurn = !leftTurn;
+        else turns = dirDiff;
 
-        return initialTurnDirection;
+        return leftTurn ? 6 - turns : turns;
     }
 
     private int computeTurns(int currentDir, int targetDir) {
-        int turns = 0;
         int dirDiff = Math.abs(currentDir - targetDir);
 
-        if (dirDiff > 3) {
-            turns = 6 - dirDiff;
-        } else {
-            turns = dirDiff;
-        }
-
-        return turns;
+        return (dirDiff > 3) ? 6 - dirDiff : dirDiff;
     }
 
     private FringeHex containsFringeHex(List<FringeHex> list, FringeHex fhx) {
-        if ((list == null) || (list.size() == 0)) {
-            return null;
-        }
+        if ((list == null) || (list.isEmpty())) return null;
 
-        for (FringeHex lfhx : list) {
-            if ((lfhx.hx.getColumn() == fhx.hx.getColumn()) && (lfhx.hx.getRow() == fhx.hx.getRow())) {
-                return lfhx;
-            }
-        }
+        for (FringeHex hex : list)
+            if ((hex.hx.getColumn() == fhx.hx.getColumn()) && (hex.hx.getRow() == fhx.hx.getRow())) return hex;
         return null;
     }
 }

@@ -81,7 +81,7 @@ public class ProgramImpl extends AbstractNode implements Program {
 
     @Override
     public boolean classInv() {
-        return this.getChildren() != null && this.getChildren().size() > 0;
+        return this.getChildren() != null && !this.getChildren().isEmpty();
     }
 
     @Override

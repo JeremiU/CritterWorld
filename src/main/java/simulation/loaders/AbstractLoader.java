@@ -4,7 +4,6 @@ import java.io.*;
 
 public abstract class AbstractLoader {
 
-    private InputStream is;
     private final String fileName;
 
     public AbstractLoader(String fileName) {
@@ -13,7 +12,7 @@ public abstract class AbstractLoader {
 
     public void readFile() {
         try {
-            is = new FileInputStream(fileName);
+            InputStream is = new FileInputStream(fileName);
             BufferedReader r = new BufferedReader(new InputStreamReader(is));
 
             String line;
@@ -22,15 +21,9 @@ public abstract class AbstractLoader {
             throw new RuntimeException(ex);
         }
         afterRead();
-
-        // TODO: load new inputStream into AST parser
     }
 
     public abstract void readLine(String line);
 
     public abstract void afterRead();
-
-    public InputStream getInputStream() {
-        return is;
-    }
 }

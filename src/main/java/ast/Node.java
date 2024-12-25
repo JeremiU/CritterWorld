@@ -11,8 +11,6 @@ import java.util.List;
 public interface Node extends Cloneable {
 
     /**
-     * The number of nodes in the AST rooted at this node, including this node
-     *
      * @return The size of the AST rooted at this node
      */
     int size();
@@ -62,15 +60,11 @@ public interface Node extends Cloneable {
     String toString();
 
     /**
-     * Makes a deep copy of this {@code Node}.
-     *
      * @return A deep copy of this {@code Node}.
      */
     Node clone();
 
     /**
-     * Gets the category of this {@code Node}
-     *
      * @return the category this {@code Node} belongs to
      */
     NodeCategory getCategory();

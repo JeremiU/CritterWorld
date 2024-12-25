@@ -7,5 +7,4 @@ public interface GameDrawable {
     void draw(GraphicsContext g);
 
     Color getColor();
-
 }

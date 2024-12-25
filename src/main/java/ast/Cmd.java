@@ -11,7 +11,7 @@ public class Cmd extends AbstractNode {
     private CmdType type;
 
     /**
-     * Create a new command (action/update) of type type
+     * Create a new command (action/update) of CmdType type
      *
      * @param type type of command (action/update) being created
      */

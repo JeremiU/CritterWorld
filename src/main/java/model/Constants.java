@@ -1,10 +1,6 @@
 package model;
 
 public final class Constants {
-
-    private Constants() {
-    }
-
     /**
      * BASE_DAMAGE (default: 100)
      * The multiplier for all damage done by attacking
@@ -114,16 +110,16 @@ public final class Constants {
     public static final int INITIAL_ENERGY = 250;
 
     /**
-     * INITIAL_BIRTHED_SIZE (default: 1)
+     * INITIAL_SIZE (default: 1)
      * Size of a newly birthed critter
      */
-    public static final int INITIAL_BIRTHED_SIZE = 1;
+    public static final int INITIAL_SIZE = 1;
 
     /**
-     * INITIAL_BIRTHED_POSTURE (default: 1)
+     * INITIAL_POSTURE (default: 0)
      * Posture of a newly birthed critter
      */
-    public static final int INITIAL_BIRTHED_POSTURE = 0;
+    public static final int INITIAL_POSTURE = 0;
 
     /**
      * MIN_MEMORY (default: 7)
@@ -131,11 +127,20 @@ public final class Constants {
      */
     public static final int MIN_MEMORY = 7;
 
+    // default number of critters to load in per file
+    public static final int DEFAULT_CRITTER_LOAD = 4;
+
     /**
      * MANNA_COUNT (default: 10)
      * Number of food items randomly dropped onto the map per time step per 1,000 hexes on the board
      */
     public static final int MANNA_COUNT = 10;
+
+    /**
+     * MANNA_COUNT (default: 10)
+     * Value to increase food by
+     */
+    public static final int MANNA_AMOUNT = 10;
 
     /**
      * Class containing Memory Constants, namely indices

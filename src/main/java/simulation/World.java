@@ -1,11 +1,10 @@
 package simulation;
 
 import cms.util.maybe.Maybe;
+import main.Util;
 import model.ReadOnlyCritter;
 import model.ReadOnlyWorld;
-import simulation.loaders.WorldLoader;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -21,189 +20,99 @@ public class World implements ReadOnlyWorld {
     private final int width;
     private final int height;
 
-    // number of timesteps elapsed
     private int steps = 0;
-    private int critterNumber = 0;
+    private int critterNumber;
 
-    // Constructor used in WorldLoader
+    private final String worldName;
+
+    private boolean enableManna = true, enableForcedMutation;
+
     public World(String worldName, int width, int height, List<Critter> critters, List<Hex> rocks, List<Hex> foods) {
-        // is it [height][width]?
+        this.worldName = worldName;
         this.width = width;
         this.height = height;
         hexes = new Hex[height][width];
         critterNumber = critters.size();
 
-        // Initially filling the world with EMPTY hexes
         for (int i = 0; i < hexes.length; i++) {
             for (int j = 0; j < hexes[i].length; j++) {
                 hexes[i][j] = new Hex(i, j, Hex.HexType.EMPTY);
             }
         }
 
-        // Populating the World
-        for (Hex rock : rocks) {
-            hexes[rock.getRow()][rock.getColumn()] = rock;
-        }
-
-        for (Hex food : foods) {
-            hexes[food.getRow()][food.getColumn()] = food;
-        }
-
-        for (Critter critter : critters) {
-            hexes[critter.getRow()][critter.getColumn()].setCritter(critter);
-        }
+        for (Hex rock : rocks) hexes[rock.getRow()][rock.getColumn()] = rock;
+        for (Hex food : foods) hexes[food.getRow()][food.getColumn()] = food;
+        for (Critter critter : critters) hexes[critter.getRow()][critter.getColumn()].setCritter(critter);
     }
 
-    // Constructor without Critters (used in WorldLoader)
     public World(String worldName, int width, int height, List<Hex> rocks, List<Hex> foods) {
-        // is it [height][width]?
-        this.width = width;
-        this.height = height;
-        hexes = new Hex[height][width];
-//        critterNumber = critters.size();
-
-        // Initially filling the world with EMPTY hexes
-        for (int i = 0; i < hexes.length; i++) {
-            for (int j = 0; j < hexes[i].length; j++) {
-                hexes[i][j] = new Hex(i, j, Hex.HexType.EMPTY);
-            }
-        }
-
-        // Populating the World
-        for (Hex rock : rocks) {
-            hexes[rock.getRow()][rock.getColumn()] = rock;
-        }
-
-        for (Hex food : foods) {
-            hexes[food.getRow()][food.getColumn()] = food;
-        }
-
-//        for (Critter critter : critters) {
-//            hexes[critter.getRow()][critter.getColumn()].setCritter(critter);
-//        }
+        this(worldName, width, height, new ArrayList<>(), rocks, foods);
     }
 
-    // Constructor used in Controller (creates an empty world with random rocks)
     public World() {
-        // default values
-        width = WIDTH;
-        height = HEIGHT;
-        hexes = new Hex[height][width];
-
-        // Initially filling the world with EMPTY hexes
-        for (int i = 0; i < hexes.length; i++) {
-            for (int j = 0; j < hexes[i].length; j++) {
-                if (Hex.isValidHexCoordinate(i, j))
-                    hexes[i][j] = new Hex(i, j, Hex.HexType.EMPTY);
-                else
-                    hexes[i][j] = new Hex(i, j, Hex.HexType.INVALID);
-
-            }
-        }
+        this("New World", WIDTH, HEIGHT, new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
 
         // Placing rocks
         for (int i = 0; i < 5; i++) {
-            // Generating random coordinates for the rocks to be placed at
             Coordinate coordinate = generateValidCoordinate();
-            int rockColumn = coordinate.getColumn();
-            int rockRow = coordinate.getRow();
+            int rockColumn = coordinate.column();
+            int rockRow = coordinate.row();
 
-            System.out.println("Generated Coordinate: " + coordinate);
-
-
-            // Ensuring two Rocks aren't placed on top of each other (generating coordinates again)
             while (hexes[rockRow][rockColumn].getType() == Hex.HexType.ROCK) {
                 coordinate = generateValidCoordinate();
-                rockColumn = coordinate.getColumn();
-                rockRow = coordinate.getRow();
+                rockColumn = coordinate.column();
+                rockRow = coordinate.row();
             }
 
             hexes[rockRow][rockColumn] = new Hex(rockColumn, rockRow, Hex.HexType.ROCK);
         }
     }
 
-    // Inserts a new critter into the world (with RANDOM POSITION)
     public void insertCritter(Critter critter) {
-
-        // Generating random coordinates for the Critters to be placed at
         Coordinate coordinate = generateValidCoordinate();
-        int critterColumn = coordinate.getColumn();
-        int critterRow = coordinate.getRow();
 
-        // Ensuring two Critters aren't placed on top of each other (generating coordinates again)
-        while (hexes[critterRow][critterColumn].getType() == Hex.HexType.CRITTER) {
+        while (hexAt(coordinate).getType() == Hex.HexType.EMPTY) {
             coordinate = generateValidCoordinate();
-            critterColumn = coordinate.getColumn();
-            critterRow = coordinate.getRow();
         }
-
-        //set the random location in the critter
-        critter.setLocation(critterColumn, critterRow);
-        hexes[critterRow][critterColumn].setCritter(critter);
+        insertCritterAtLocation(critter, coordinate.column(), coordinate.row());
     }
 
-    // Inserts a new critter into the world at the specified
-    //location.
-    //if the critter is successfully inserted returns true, false
-    //otherwise
-    public boolean insertCritterAtLocation(Critter critter, int col, int row) {
-
-        //if there is a critter already at the specified location then
-        //return false
-        if (hexes[row][col].getType() == Hex.HexType.CRITTER) {
-            return false;
-        }
+    //precondition: critter, col, row = valid
+    public void insertCritterAtLocation(Critter critter, int col, int row) {
+        if (hexes[row][col].getType() == Hex.HexType.CRITTER) return;
 
         critter.setLocation(col, row);
         hexes[row][col].setCritter(critter);
-
-        return true;
     }
 
-    // Sets any Hex in "hexes" as a user-defined value
     public void setHex(Coordinate coordinate, Hex hex) {
-        hexes[coordinate.getRow()][coordinate.getColumn()] = hex;
+        hexes[coordinate.row()][coordinate.column()] = hex;
     }
 
-    public void setHex(int column, int row, Hex hex) {
-        hexes[row][column] = hex;
-    }
-
-    // Returns the hex at a given location
     public Hex hexAt(int column, int row) {
         return hexes[row][column];
     }
 
     public Hex hexAt(Coordinate coordinate) {
-
-        return hexes[coordinate.getRow()][coordinate.getColumn()];
+        if (coordinate.row() > hexes.length || coordinate.column() > hexes[coordinate.row()].length) return new Hex(-1,-1, Hex.HexType.INVALID);
+        return hexes[coordinate.row()][coordinate.column()];
     }
 
-
-    // Advances the world for n time steps
     public void step(int n) {
-        for (int k = 0; k < n; k++) {
-            steps++;
-            for (Hex[] hex : hexes) {
-                for (Hex value : hex) {
-                    // covers all hexes
-                    value.tryTickCritter();
-                }
-            }
-        }
+        steps += n;
+        for (int k = 0; k < n; k++)
+            for (Hex[] hex : hexes)
+                for (Hex value : hex) value.tryTickCritter();
     }
 
-    // Returns the number of timesteps elapsed
     public int getSteps() {
         return steps;
     }
 
-    // Returns number of critters
     public int critterNumber() {
         return critterNumber;
     }
 
-    // Adds critters to the world (used in constructor without critters)
     public void setCritters(List<Critter> critters) {
         critterNumber = critters.size();
         for (Critter critter : critters) {
@@ -215,26 +124,14 @@ public class World implements ReadOnlyWorld {
     public String toString() {
         StringBuilder builder = new StringBuilder();
         for (int i = hexes.length - 1; i >= 0; i--) {
-
-            // Creating the hex alignment in the console
-
             for (int j = 0; j < hexes[i].length; j++) {
                 builder.append(" ");
 
-                //TODO: create the toString logic (printing out the world in the console)
-//                builder.append(hexes[i][j].toString());
-                if (Hex.isValidHexCoordinate(i, j))
-//                    builder.append("(" + hexes[i][j].getCoordinate().row + "," + hexes[i][j].getCoordinate().column + ")");
-                    builder.append(hexes[i][j].toString());
+                if (Hex.isValidHexCoordinate(i, j)) builder.append(hexes[i][j].toString());
+                else builder.append(" ");
 
-                else
-                    builder.append(" ");
-//                builder.append("(" + j + "," + i + ")");
-
-                // Adds separating spaces in the console
                 builder.append(" ");
             }
-
             builder.append("\n");
         }
         return builder.toString();
@@ -246,63 +143,35 @@ public class World implements ReadOnlyWorld {
 
     @Override
     public int getNumberOfAliveCritters() {
-        return 0;
+        return 0; //TODO FIX
     }
 
-    /**
-     * @param c column id.
-     * @param r row id.
-     * @return the critter at the specified hex.
-     */
     @Override
     public Maybe<ReadOnlyCritter> getReadOnlyCritter(int c, int r) {
         Hex h = this.hexAt(c, r);
-        if (h != null && h.getType() == Hex.HexType.CRITTER) {
-            return Maybe.from(h.getCritter());
-        }
+        if (h != null && h.getType() == Hex.HexType.CRITTER) return Maybe.from(h.getCritter());
         return Maybe.none();
     }
 
-    /**
-     * @param c column id.
-     * @param r row id.
-     * @return 0 if the cell is empty. -1 if it is rock, -(X+1) if it is X food, X+1 if it contains a critter facing
-     * in direction X. Treat out-of-bound or invalid hex as rock.
-     */
     @Override
     public int getTerrainInfo(int c, int r) {
-        //check if this is a valid hex coordinate
-        //if not valid return -1
-        if (!Hex.isValidHexCoordinate(c, r)) {
-            return -1;
-        }
-        Hex h = this.hexAt(c, r);
-        int result = 0;
-        switch (h.getType()) {
-            case EMPTY:
-                break;
+        return switch (this.hexAt(c, r).getType()) {
             case CRITTER:
-                Critter cr = h.getCritter();
-                result = cr.getDirection() + 1;
-                break;
-            case ROCK:
-            case INVALID:
-                result = -1;
-                break;
+                yield (this.hexAt(c, r).getCritter()).getDirection() + 1;
+            case ROCK, INVALID:
+                yield -1;
+            case EMPTY:
+                yield 0;
             case FOOD:
-                result = -(h.getFoodValue() + 1);
-                break;
-        }
-
-        return result;
+                yield -(this.hexAt(c, r).getFoodValue() + 1);
+        };
     }
 
-    // Supplementary methods for generating valid odd / even coordinate values
     public static int getRandomOddNumber(int min, int max) {
-        max--;
-        if (max % 2 == 0) --max;
-        if (min % 2 == 0) ++min;
-        return min + 2 * (int) (Math.random() * ((max - min) / 2 + 1));
+        if (min % 2 == 0) min++;  // Ensure min is odd
+        if (max % 2 == 0) max--;  // Ensure max is odd
+
+        return min + 2 * (int) (Math.random() * (((max - min) >> 1) + 1));
     }
 
     public static int getRandomEvenNumber(int min, int max) {
@@ -311,11 +180,9 @@ public class World implements ReadOnlyWorld {
     }
 
     private Coordinate generateValidCoordinate() {
-        if (new Random().nextBoolean()) {
-            return new Coordinate(getRandomOddNumber(0, width), getRandomOddNumber(0, height));
-        } else {
-            return new Coordinate(getRandomEvenNumber(0, width), getRandomEvenNumber(0, height));
-        }
+        return new Random().nextBoolean()
+          ? new Coordinate(getRandomOddNumber(0, width-1), getRandomOddNumber(0, height-1))
+          : new Coordinate(getRandomEvenNumber(0, width-1), getRandomEvenNumber(0, height-1));
     }
 
     public int getWidth() {
@@ -330,13 +197,23 @@ public class World implements ReadOnlyWorld {
         return hexes;
     }
 
-/*    public static void main(String[] args) {
+    public String getWorldName() {
+        return worldName;
+    }
 
-        System.out.println(new File("").getAbsolutePath());
-        WorldLoader loader = new WorldLoader("files/world_loader_test.txt");
-        World world = loader.getWorld();
-        System.out.println(world);
-        world.step(1);
-        System.out.println(world);
-    }*/
+    public void addFood() {
+        if (!this.enableManna) return;
+        if (Util.randomInt(this.getNumberOfAliveCritters()) != 0) return; // 1/n
+        int hexCount = (int) Math.floor((MANNA_COUNT * getHeight() * getWidth()) / 1000.0);
+        while (hexCount > 0) {
+            Coordinate c = generateValidCoordinate();
+            Hex cHex = this.hexAt(c);
+            while (cHex.getType() != Hex.HexType.FOOD && cHex.getType() != Hex.HexType.EMPTY) {
+                c = generateValidCoordinate();
+                cHex = this.hexAt(c);
+            }
+            cHex.setFoodValue(this.hexAt(c).getFoodValue() + MANNA_AMOUNT);
+            hexCount--;
+        }
+    }
 }

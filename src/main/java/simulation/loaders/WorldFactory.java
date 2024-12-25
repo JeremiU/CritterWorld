@@ -1,6 +1,5 @@
 package simulation.loaders;
 
-import controller.ControllerImpl;
 import simulation.World;
 
 /**
@@ -8,12 +7,9 @@ import simulation.World;
  */
 public class WorldFactory {
 
-    private WorldFactory() {
-    } // unused, private constructor
-
     /**
      * Starts a new simulation with a world populated by randomly placed rocks.
-      */
+     */
     public static World createRandomWorld() {
         return new World();
     }
@@ -22,9 +18,6 @@ public class WorldFactory {
      * Loads a world from a given file
      */
     public static World fromFile(String fileName) {
-        WorldLoader loader = new WorldLoader(fileName);
-//        ControllerImpl.currentWorld = loader.getWorld();
-//        return ControllerImpl.currentWorld;
-        return loader.getWorld();
+        return new WorldLoader(fileName).createWorld();
     }
 }
