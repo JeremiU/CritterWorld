@@ -5,38 +5,36 @@ import controller.ControllerImpl;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.scene.Group;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.*;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.ScrollEvent;
-import javafx.scene.paint.Color;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Polygon;
+import javafx.scene.text.Font;
 import javafx.scene.text.Text;
-import javafx.scene.transform.Rotate;
+import javafx.scene.text.TextFlow;
 import javafx.scene.transform.Scale;
 import javafx.scene.transform.Translate;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import simulation.Hex;
-import simulation.World;
 
 import java.awt.*;
 import java.io.File;
-import java.sql.Array;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
+
+import static model.Constants.DEFAULT_CRITTER_LOAD;
 
 public class DisplayController extends Application {
 
@@ -44,9 +42,6 @@ public class DisplayController extends Application {
     private static Stage currentStage;
     private static Scene currentScene;
     private static Group currentGroup;
-
-    // All the custom Game objects that can be drawn to a GraphicsContext
-    private final ArrayList<GameDrawable> drawables = new ArrayList<>();
 
     // All the hexagonal tiles
     private final ArrayList<Hexagon> hexagons = new ArrayList<>();
@@ -58,132 +53,179 @@ public class DisplayController extends Application {
     // The currently highlighted Hex that the user selected
     private static Hexagon highlightedHex;
 
+    @FXML
+    private TextField playRate, critterNumber;
+
     // Used to run the simulation at certain time intervals
     Timeline timer;
 
+    @FXML
+    private StackPane mainStackPane;
+
+    @FXML
+    private Button timerStart, loadCritter, singleStep, pauseTimer, onPrintClick;
+
+    @FXML
+    private MenuButton loadWorldMenu;
+
+    @FXML
+    private TextFlow helpLabels;
 
     @Override
     public void start(Stage stage) throws Exception {
-        //load src\test\resources\files\world_loader_test.txt
         currentStage = stage;
 
         Parent root = FXMLLoader.load(Objects.requireNonNull(getClass().getClassLoader().getResource("design.fxml")));
-//
+
         currentScene = new Scene(root);
-        stage.setScene(currentScene);
-        stage.show();
+        currentStage.setScene(currentScene);
+        currentStage.show();
+        currentStage.setMinWidth(600);
+        currentStage.setMinHeight(600);
+        currentStage.setTitle("CS 2112 CritterWorld");
 
         currentGroup = (Group) currentStage.getScene().lookup("#mainGroup");
+        mainStackPane = (StackPane) currentStage.getScene().lookup("#mainStackPane");
+        currentGroup = (Group) mainStackPane.lookup("#mainGroup");
+        loadWorldMenu = (MenuButton) currentStage.getScene().lookup("#loadWorldMenu");
+        timerStart = (Button) currentStage.getScene().lookup("#timerStart");
+        loadCritter = (Button) currentStage.getScene().lookup("#loadCritter");
+        singleStep = (Button) currentStage.getScene().lookup("#singleStep");
+        pauseTimer = (Button) currentStage.getScene().lookup("#pauseTimer");
+        onPrintClick = (Button) currentStage.getScene().lookup("#onPrintClick");
+        helpLabels = (TextFlow) currentStage.getScene().lookup("#helpLabels");
+        playRate = (TextField) currentStage.getScene().lookup("#playRate");
+        critterNumber = (TextField) currentStage.getScene().lookup("#critterNumber");
 
+        Text stepsText = new Text("Steps: 0");
+        stepsText.setId("stepsNumber");
+
+        Text critterText = new Text("Critters: 0");
+        critterText.setId("crittersNumber");
+
+        Text zoomText = new Text("ZOOM - mousewheel");
+        Text panText = new Text("PAN - WASD/arrow keys");
+        Text clickText = new Text("CLICK - on Hex to see info.");
+
+        helpLabels.getChildren().addAll(stepsText, new Text("\n"), critterText, new Text("\n"), zoomText, new Text("\n"), panText, new Text("\n"), clickText);
+
+        adjustMenuButtonWidth(timerStart, timerStart.getText(), timerStart.getFont());
+        adjustMenuButtonWidth(loadCritter, loadCritter.getText(), loadCritter.getFont());
+        adjustMenuButtonWidth(onPrintClick, onPrintClick.getText(), onPrintClick.getFont());
+        adjustMenuButtonWidth(singleStep, singleStep.getText(), singleStep.getFont());
+        adjustMenuButtonWidth(pauseTimer, pauseTimer.getText(), pauseTimer.getFont());
+        adjustMenuButtonWidth(loadWorldMenu, loadWorldMenu.getText(), loadWorldMenu.getFont());
+        adjustMenuButtonWidth(playRate, playRate.getPromptText(), playRate.getFont());
+        adjustMenuButtonWidth(critterNumber, critterNumber.getPromptText(), critterNumber.getFont());
         initAll();
-        drawGroup(stage);
+    }
 
-//        Scene scene = new Scene(root, 300, 275);
-//
-//        stage.setTitle("FXML Welcome");
-//        stage.setScene(scene);
-//        stage.show();
+    private void adjustMenuButtonWidth(Region label, String menuText, Font font) {
+        Text text = new Text(menuText + "\n");
+        text.setFont(font);
+        double textWidth = text.getLayoutBounds().getWidth(); // Use the actual width from the text layout
+        double totalPadding = 20;
+        double buttonWidth = textWidth + totalPadding;
+
+        final double MARGIN = 7.5;
+        HBox.setMargin(label, new Insets(MARGIN));
+        if (menuText.equalsIgnoreCase("load world"))
+            HBox.setMargin(label, new Insets(MARGIN, MARGIN*2, MARGIN, MARGIN)); //allows for drop-down arrow
+
+        double arrowWidth = (label instanceof MenuButton) ? 20.0 : 0;
+        label.setPrefWidth(buttonWidth + arrowWidth);
+    }
+
+    private void adjustGroupScale() {
+        if (mainStackPane != null && currentGroup != null) {
+            double scaleX = mainStackPane.getWidth() / 680.0;
+            double scaleY = mainStackPane.getHeight() / 500.0;
+            double scale = Math.min(scaleX, scaleY); // Maintain aspect ratio
+
+            scale = Math.max(scale, 0.1); // Prevent shrinking too small
+            currentGroup.setScaleX(scale);
+            currentGroup.setScaleY(scale);
+        }
     }
 
     public static void main(String[] args) {
         launch(args);
     }
 
-    // Supplementary methods used in GUI Controller
-
     @FXML
-    private void displayWorld() {
-//        clearCanvas((Canvas) currentStage.getScene().lookup("#canvas"));
-        drawGroup(currentStage);
+    private void onPrintClick() {
     }
 
     @FXML
     private void singleStep() {
         controller.advanceTime(1);
         updateDashboard();
+        updateInfo();
+    }
+
+    private void updateInfo() {
+        String text = highlightedHex == null ? "Information Panel" : highlightedHex.getHex().printInfo();
+        Label console = (Label) currentStage.getScene().lookup("#displayConsole");
+        console.setText(text);
     }
 
     @FXML
     private void newWorld() {
         hexagons.clear();
         controller.newWorld();
+        currentStage.setTitle("CS 2112 CritterWorld: Playing " + controller.getReadOnlyWorld().getWorldName());
         initAll();
-//        clearCanvas((Canvas) currentStage.getScene().lookup("#canvas"));
-        drawGroup(currentStage);
+        updateInfo();
     }
 
     @FXML
     private void loadCritterFile() {
-        hexagons.clear();
-        currentGroup.getChildren().clear();
-
         FileChooser fileChooser = new FileChooser();
         File selectedFile = fileChooser.showOpenDialog(currentStage);
 
-        // Reading the number of critters the user wants to add to the world
+        if (selectedFile == null) return;
+
+        hexagons.clear();
+        currentGroup.getChildren().clear();
+
         TextField critterNumber = (TextField) currentStage.getScene().lookup("#critterNumber");
-        if (!critterNumber.getText().equals("") && critterNumber.getText().matches("\\d+")) {
+        int critterLoad = DEFAULT_CRITTER_LOAD;
 
-            int critterNum = Integer.parseInt(critterNumber.getText());
+        if (!critterNumber.getText().isEmpty() && critterNumber.getText().matches("\\d+"))
+            critterLoad = Integer.parseInt(critterNumber.getText());
 
-            // Ensuring nothing happens if the user cancels the file selection menu
-            if (selectedFile != null) {
-//                controller.loadWorld(selectedFile.getAbsolutePath(), true, false);
-                System.out.println("current world: " + controller.currentWorld);
-                controller.loadCritters(selectedFile.getAbsolutePath(), critterNum); //TODO: Critter Number SELECTION (user)
-                initAll();
-            }
-        }
-    }
-
-    private void drawGroup(Stage currentStage) {
-        // Testing the new Hexagon "Polygon" representation
-//        Polygon hexagon = new Polygon();
-//        hexagon.getPoints().addAll(200.0, 50.0,
-//                400.0, 50.0,
-//                450.0, 150.0,
-//                400.0, 250.0,
-//                200.0, 250.0,
-//                150.0, 150.0);
-//        currentGroup.getChildren().add(hexagon);
+        controller.loadCritters(selectedFile.getAbsolutePath(), critterLoad);
+        initAll();
+        updateInfo();
     }
 
     @FXML
-    private void chooseFile() {
-        hexagons.clear();
-        controller.currentWorld = null;
-        currentGroup.getChildren().clear();
+    private void chooseWorld() {
         FileChooser fileChooser = new FileChooser();
         File selectedFile = fileChooser.showOpenDialog(currentStage);
 
-        // Ensuring nothing happens if the user cancels the file selection menu
-        if (selectedFile != null) {
-            controller.loadWorld(selectedFile.getAbsolutePath(), true, false);
-            initAll();
-        }
+        if (selectedFile == null) return; //TODO: Check world file format
+        hexagons.clear();
+
+        String path = selectedFile.getAbsolutePath();
+
+        controller.loadWorld(path, true, false);
+        currentStage.setTitle("CS 2112 CritterWorld: Playing " + controller.getReadOnlyWorld().getWorldName());
+        initAll();
     }
 
     private void initGrid() {
-        System.out.println(controller.currentWorld);
-
         currentGroup.getChildren().clear();
         Hex[][] hexes = controller.currentWorld.getAllHexes();
 
         ArrayList<Hex> specialRow = new ArrayList<>();
-
         ArrayList<Hex> row = new ArrayList<>();
-
         ArrayList<ArrayList<Hex>> rows = new ArrayList<>();
-
-        int normalized = 0;
 
         // Splitting the hexes into pairs of rows
         for (int i = hexes.length - 1; i >= 0; i--) {
-//            System.out.println("viewed: " + i);
-
             // Special Row if it's the first row in a world with an odd number of rows
             if (hexes.length % 2 == 1 && i == hexes.length-1) {
-//                specialRow.addAll(Arrays.asList(hexes[i]));
                 for (int j = 0; j < hexes[i].length; j++) {
                     if (j % 2 == 1) continue;
                     specialRow.add(hexes[i][j]);
@@ -192,52 +234,15 @@ public class DisplayController extends Application {
 
             if (i % 2 == 0) continue;
             for (int j = 0; j < hexes[i].length; j++) {
-//                System.out.println("viewed: " + hexes[i][j].getColumn());
                 if (j % 2 == 1) {
-
                     row.add(hexes[i-1][j-1]);
                     row.add(hexes[i][j]);
-
-                    //TODO: THis part has the error in it!!! FIx plx ;)
-//                    System.out.println("j: " + j);
-//                    System.out.println("hexes.length-2: " + (hexes.length-2));
-/*                    if (j+1 == hexes[i-1].length-1) {
-                        hexes[i - 1][j + 1].setType(Hex.HexType.INVALID);
-                        row.add(hexes[i - 1][j + 1]);
-                        normalized = 1;
-                    }*/
-
-
-
                 }
             }
-
-            // Adding all the rows to the "rows" list
-            //TODO: stilt? check if this works (adding dummy hex to end of shorter row
-//            if (controller.currentWorld.getWidth() % 2 == 1) {
-//                row.add(new Hex(0, 0, Hex.HexType.INVALID, 0));
-//            }
 
             rows.add(new ArrayList<>(row));
             row.clear();
         }
-
-        //TODO: deleteME (displaying Hexes)
-/*        System.out.println("hexes as they are stored");
-        for (int i = 0; i < hexes.length; i++) {
-            for (int j = 0; j < hexes[i].length; j++) {
-                System.out.print(hexes[i][j]);
-            }
-            System.out.println();
-        }*/
-
-        // Displaying the contents of "rows"
-/*        for (int j = 0; j < rows.size(); j++) {
-            for (int k = 0; k < rows.get(j).size(); k++) {
-                System.out.print(rows.get(j).get(k));
-            }
-            System.out.println("");
-        }*/
 
         // Temporary initial "root" hexagon (deleted after grid is initialized)
         boolean firstHex = true;
@@ -246,47 +251,31 @@ public class DisplayController extends Application {
         Hexagon originHex = new Hexagon(100, 100, 20);
         hexagons.add(originHex);
 
-
-        //TODO: add the last column of the world
         if (controller.currentWorld.getWidth() % 2 == 1) {
             ArrayList<Hex> finalColumn = new ArrayList<>();
-            for (int i = 0; i < hexes.length; i++) {
-                for (int j = 0; j < hexes[i].length; j++) {
-                    if (j == hexes[i].length - 1 && Hex.isValidHexCoordinate(i, j)) {
+            for (int i = 0; i < hexes.length; i++)
+                for (int j = 0; j < hexes[i].length; j++)
+                    if (j == hexes[i].length - 1 && Hex.isValidHexCoordinate(i, j))
                         finalColumn.add(0, hexes[i][j]);
-                    }
-                }
-            }
-            int next = 0;
-            for (ArrayList<Hex> line : rows) {
-                line.add(finalColumn.get(next));
-                next++;
-            }
+
+            for (int i = 0; i < rows.size(); i++) rows.get(i).add(finalColumn.get(i));
         }
-
-
 
         // Drawing the hexagonal tiles
         boolean upFirst = true;
         for (int i = 0; i < rows.size(); i++) {
             for (int j = 0; j < rows.get(i).size(); j++) {
-
                 Hexagon newHexagon = rows.get(i).get(j).getHexagon();
                 if (j == 0 && i != 0) {
-                    // Of the width is ODD and ...? TODO: check!
                     if (controller.currentWorld.getWidth() % 2 == 1) {
                         hexagons.get(hexagons.size() - (controller.currentWorld.getWidth())).attachBottom(newHexagon);
                         upFirst = false;
                     } else {
-                        // Adding hexagon to the first column
                         hexagons.get(hexagons.size()+adjustment - (controller.currentWorld.getWidth())).attachBottom(newHexagon);
                     }
                 } else {
-                    if (upFirst) {
-                        hexagons.get(hexagons.size() - 1).attachBottomRight(newHexagon);
-                    } else {
-                        hexagons.get(hexagons.size() - 1).attachTopRight(newHexagon);
-                    }
+                    if (upFirst) hexagons.get(hexagons.size() - 1).attachBottomRight(newHexagon);
+                    else hexagons.get(hexagons.size() - 1).attachTopRight(newHexagon);
                     upFirst = !upFirst;
                 }
                 hexagons.add(newHexagon);
@@ -295,23 +284,15 @@ public class DisplayController extends Application {
             if (firstHex) {
                 hexagons.remove(originHex);
                 firstHex = false;
-//                System.out.println("deleted anchor hex");
             }
         }
 
-
         // for all children in Group, if hex is rightmost -> add element of finalColumn
-
-        // Removing the anchor hex
-//        hexagons.remove(0);
-
         // Adding the special row to the top of the Hexagon matrix
         int nextSpecialHex = 0;
         if (controller.currentWorld.getHeight() % 2 == 1) {
-
             for (int i = 0; i < controller.currentWorld.getWidth(); i++) {
                 if (i % 2 == 0) {
-
                     Hexagon newHexagon = specialRow.get(nextSpecialHex).getHexagon();
                     nextSpecialHex++;
 
@@ -321,36 +302,14 @@ public class DisplayController extends Application {
             }
         }
 
-
-
-        // Adding on Click Listeners for all the Hexagons
         for (int i = 0; i < hexagons.size(); i++) {
-            // Adding onClickListeners
-            Polygon polygon = hexagons.get(i).getPolygon();
-            int finalI = i;
-            polygon.setOnMouseClicked(mouseEvent -> {
-
-                // Showing the hex info on the displayConsole
-                Label console = (Label) currentStage.getScene().lookup("#displayConsole");
-                console.setText(hexagons.get(finalI).getHex().printInfo());
-
-                // Highlighting the Hex the user clicks on
-                if (highlightedHex != null)
-                    highlightedHex.deHighlight();
-                hexagons.get(finalI).highlight();
-                highlightedHex = hexagons.get(finalI);
-
-            });
-
-            // Scaling the Polygons
+            Polygon polygon = getPolygon(i);
             polygon.getTransforms().add(scale); // Scaling
-
 
             if (hexagons.get(i).hasArrow()) {
                 hexagons.get(i).initArrow();
                 Polygon arrow = hexagons.get(i).getArrow();
                 arrow.getTransforms().add(scale);
-
                 Text text = hexagons.get(i).getText();
                 text.getTransforms().add(scale);
             }
@@ -362,113 +321,99 @@ public class DisplayController extends Application {
                 currentGroup.getChildren().add(hexagons.get(i).getArrow());
                 currentGroup.getChildren().add(hexagons.get(i).getText());
             }
-
             currentGroup.getTransforms().add(translate); // Transforming
-
         }
+    }
 
+    private Polygon getPolygon(int i) {
+        Polygon polygon = hexagons.get(i).getPolygon();
+        polygon.setOnMouseClicked(mouseEvent -> {
+            Label console = (Label) currentStage.getScene().lookup("#displayConsole");
+            console.setText(hexagons.get(i).getHex().printInfo());
 
-
+            if (highlightedHex != null) highlightedHex.deHighlight();
+            hexagons.get(i).highlight();
+            highlightedHex = hexagons.get(i);
+        });
+        return polygon;
     }
 
     public void addListeners() {
-        currentScene.setOnScroll(event -> {
+        //resize listeners
+        mainStackPane.widthProperty().addListener((obs, oldVal, newVal) -> adjustGroupScale());
+        mainStackPane.heightProperty().addListener((obs, oldVal, newVal) -> adjustGroupScale());
+
+        //only non-zero integers
+        critterNumber.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue.matches("\\d*") || Integer.parseInt(newValue) <= 0) critterNumber.setText(oldValue);
+        });
+        if (controller.getReadOnlyWorld() == null) return;
+
+        currentGroup.setOnScroll(event -> {
             scale.setPivotX(MouseInfo.getPointerInfo().getLocation().getX());
             scale.setPivotY(MouseInfo.getPointerInfo().getLocation().getY());
+
             if (event.getDeltaY() > 0) {
-                scale.setX(scale.getX() + 0.01);
-                scale.setY(scale.getY() + 0.01);
-            } else if (scale.getX() >= 0.2 && scale.getY() >= 0.2){
-                scale.setX(scale.getX() - 0.01);
-                scale.setY(scale.getY() - 0.01);
+                scale.setX(flatten(scale.getX() + 0.01));
+                scale.setY(flatten(scale.getY() + 0.01));
+            } else if (scale.getX() >= 0.2 && scale.getY() >= 0.2) {
+                scale.setX(flatten(scale.getX() - 0.01));
+                scale.setY(flatten(scale.getY() - 0.01));
             }
             event.consume();
         });
         currentScene.setOnKeyPressed(event -> {
             switch (event.getCode()) {
-                case W:
-                    translate.setY(translate.getY() - 0.01);
-                    break;
-                case A:
-                    translate.setX(translate.getX() - 0.01);
-                    break;
-                case S:
-                    translate.setY(translate.getY() + 0.01);
-                    break;
-                case D:
-                    translate.setX(translate.getX() + 0.01);
-                    break;
-
-                case BACK_SPACE:
-                    System.out.println("Scale: " + scale);
-                    System.out.println("Translate: " + translate);
+                case W, UP -> translate.setY(flatten(Math.max(-0.04, translate.getY() - 0.01)));
+                case A, LEFT -> translate.setX(flatten(Math.max(-0.15, translate.getX() - 0.01)));
+                case S, DOWN -> translate.setY(flatten(Math.min(0.1, translate.getY() + 0.01)));
+                case D, RIGHT -> translate.setX(flatten(Math.min(0.13, translate.getX() + 0.01)));
+                case EQUALS, PLUS, ADD -> {
+                    scale.setX(Math.min(0.18, flatten(scale.getX() + 0.01)));
+                    scale.setY(Math.min(0.18, flatten(scale.getY() + 0.01)));
+                }
+                case MINUS, SUBTRACT -> {
+                    scale.setX(Math.max(0.1, flatten(scale.getX() - 0.01)));
+                    scale.setY(Math.max(0.1, flatten(Math.max(-0.07, scale.getY() - 0.01))));
+                }
             }
             event.consume();
         });
     }
 
-
     public void updateDashboard() {
-        Label steps = (Label) currentStage.getScene().lookup("#steps_number");
-        steps.setText("Steps: " + controller.currentWorld.getSteps());
+        int stepNum = controller.getReadOnlyWorld() != null ? controller.getReadOnlyWorld().getSteps() : 0;
+        int critNum = controller.getReadOnlyWorld() != null ? controller.currentWorld.critterNumber() : 0;
 
-        Label critters = (Label) currentStage.getScene().lookup("#critters_number");
-        critters.setText("Critters: " + controller.currentWorld.critterNumber());
+        Text steps = (Text) currentStage.getScene().lookup("#stepsNumber");
+        steps.setText("Steps: " + stepNum);
 
+        Text critters = (Text) currentStage.getScene().lookup("#crittersNumber");
+        critters.setText("Critters: " + critNum);
     }
-
-
 
     private void initAll() {
-        if (controller.currentWorld != null) {
-            addListeners();
-            initGrid();
-            updateDashboard();
-        }
-    }
-
-    private void drawAll(GraphicsContext g) {
-        drawBorder(g);
-        for (GameDrawable drawable : drawables) {
-            g.setStroke(drawable.getColor());
-            drawable.draw(g);
-        }
-    }
-
-    private void drawBorder(GraphicsContext g) {
-        final double canvasWidth = g.getCanvas().getWidth();
-        final double canvasHeight = g.getCanvas().getHeight();
-
-        g.setStroke(Color.BLACK);
-        g.setLineWidth(1);
-        g.strokeRect(0, 0, canvasWidth - 1, canvasHeight - 1);
-
+        updateDashboard();
+        addListeners();
+        if (controller.getReadOnlyWorld() != null) initGrid();
     }
 
     @FXML
     private void timerStart() {
-        TextField rate = (TextField) currentStage.getScene().lookup("#playRate");
-        System.out.println(Double.parseDouble(rate.getText()));
+        Text text = (Text) currentStage.getScene().lookup("#stepsNumber");
+        if (!text.getText().equalsIgnoreCase("Steps: 0")) return;
 
-        if (!rate.getText().equals("")) {
-            timer = new Timeline(
-                    new KeyFrame(Duration.seconds(Double.parseDouble(rate.getText())),
-                            event -> {
-                                singleStep();
-                            }));
-            timer.setCycleCount(Timeline.INDEFINITE);
-            timer.play();
-        }
+        timer = new Timeline(new KeyFrame(Duration.seconds(0), event -> singleStep()));
+        timer.setCycleCount(Timeline.INDEFINITE);
+        timer.play();
     }
 
     @FXML
     private void pauseTimer() {
-        timer.pause();
-    } //playRate
+        if (timer != null) timer.pause();
+    }
 
-
-
-
-
-
+    private double flatten(double d) {
+        return ((int)(d * 100)) / 100.0;
+    }
 }
