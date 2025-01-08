@@ -1,6 +1,7 @@
 package parse;
 
 import ast.*;
+import console.Logger;
 import exceptions.SyntaxError;
 
 import java.io.Reader;
@@ -145,31 +146,33 @@ public class ParserImpl implements Parser {
 	 */
 	public static Expr parseFactor(Tokenizer t) throws SyntaxError {
 		if (t.peek().getType().name().contains("ABV")) return new ExprMem(new ExprNum(TokenType.getMemStr(t))); //syntactic sugar
-        switch (t.peek().getType()) {
-            case NUM:
-                return new ExprNum(((NumToken) t.next()).getValue());
-            case MEM:
+        return switch (t.peek().getType()) {
+            case NUM -> new ExprNum(((NumToken) t.next()).getValue());
+            case MEM -> {
                 consume(t, TokenType.MEM);
                 consume(t, TokenType.LBRACKET);
-
                 ExprMem m = new ExprMem(parseExpression(t));
-
                 consume(t, TokenType.RBRACKET);
-                return m;
-            case LPAREN:
+                yield m;
+            }
+            case LPAREN -> {
                 consume(t, TokenType.LPAREN);
                 Expr e1 = parseExpression(t);
                 e1.setParentheses(true);
                 consume(t, TokenType.RPAREN);
-                return e1;
-            case MINUS:
+                yield e1;
+            }
+            case MINUS -> {
                 consume(t, TokenType.MINUS);
-
-                // next token should be a factor
                 Expr neg = parseFactor(t);
                 neg.setNegative(true);
-                return neg;
-            default:
+                yield neg;
+            }
+            case ERROR -> {
+                Logger.error("Incorrect Program", "ParserImpl:parseFactor", Logger.FLAG_PARSER);
+                throw new SyntaxError(t.lineNumber(),t.peek() + " is an incorrect program");
+            }
+            default -> {
                 ExprSensor s = new ExprSensor(SensorType.valueOf(t.next().getType().name()));
 
                 if (s.getSensorType() != ExprSensor.SensorType.SMELL) {
@@ -178,8 +181,9 @@ public class ParserImpl implements Parser {
                     consume(t, TokenType.RBRACKET);
                     s.setIndex(e);
                 }
-                return s;
-        }
+                yield s;
+            }
+        };
     }
 
 	/**

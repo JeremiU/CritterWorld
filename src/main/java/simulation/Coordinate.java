@@ -19,17 +19,11 @@ public record Coordinate(int column, int row) {
         assert (column >= 0 && row >= 0);
     }
 
-    /**
-     * Get the Coordinate's column (x position)
-     */
     @Override
     public int column() {
         return column;
     }
 
-    /**
-     * Get the Coordinate's row (y position)
-     */
     @Override
     public int row() {
         return row;
@@ -39,11 +33,13 @@ public record Coordinate(int column, int row) {
      * Get coordinate that the direction is pointing to
      */
     public Coordinate getCoordinateAt(int direction) {
+        if (Util.properMod(direction, DIR_AMOUNT) == TOP) return getTop();
         if (Util.properMod(direction, DIR_AMOUNT) == TOP_RIGHT) return getTopRight();
+        if (Util.properMod(direction, DIR_AMOUNT) == TOP_LEFT) return getTopLeft();
+
         if (Util.properMod(direction, DIR_AMOUNT) == BOTTOM_RIGHT) return getBottomRight();
         if (Util.properMod(direction, DIR_AMOUNT) == BOTTOM) return getBottom();
-        if (Util.properMod(direction, DIR_AMOUNT) == BOTTOM_LEFT) return getBottomLeft();
-        else return getTopLeft(); //only values of 0-5 can be returned with floor modulo arithmetic
+        else return getBottomLeft(); //only values of 0-5 can be returned with floor modulo arithmetic
     }
 
     @Override
@@ -73,5 +69,12 @@ public record Coordinate(int column, int row) {
 
     public Coordinate getTopLeft() {
         return new Coordinate(column - 1, row + 1);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof Coordinate coordinate)
+            return coordinate.column == column && coordinate.row == row;
+        return false;
     }
 }

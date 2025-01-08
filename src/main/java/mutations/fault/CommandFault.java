@@ -20,7 +20,7 @@ public class CommandFault implements Fault {
         if (!canApply(node)) return Maybe.none();
 
         Cmd cmdNode = (Cmd) node;
-        CmdType newType = Util.diffRandEnum(cmdNode.getType());
+        CmdType newType = Util.diffRandEnum(cmdNode.getType(), CmdType.class);
 
         cmdNode.setType(newType);
         if (cmdNode instanceof CmdServe) {

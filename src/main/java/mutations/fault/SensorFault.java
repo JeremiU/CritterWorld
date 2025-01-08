@@ -20,7 +20,7 @@ public class SensorFault implements Fault {
 		if (!canApply(node)) return Maybe.none();
 
 		ExprSensor s = (ExprSensor) node;
-		SensorType newType = Util.diffRandEnum(s.getSensorType());
+		SensorType newType = Util.diffRandEnum(s.getSensorType(), SensorType.class);
 
 		s.setType(newType);
 		if (newType != SensorType.SMELL) s.setIndex(new ExprNum(Util.randomInt(101)));

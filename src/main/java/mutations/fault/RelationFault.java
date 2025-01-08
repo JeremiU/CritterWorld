@@ -5,18 +5,20 @@ import ast.Expr;
 import cms.util.maybe.Maybe;
 import main.Util;
 
+import static ast.ConditionRelation.RelOperator;
+
 /**
  * A class representing Faults for the Relation Node
  */
 public class RelationFault implements Fault {
 
 	@Override
-	public Maybe<Program> apply(Program program, Node node) {
+	public Maybe<Program> apply(Program program, Node node) { //swap left & right nodes
 		if (!canApply(node)) return Maybe.none();
 
 		ConditionRelation rel = (ConditionRelation) node;
 
-		rel.setOpr(Util.diffRandEnum(rel.getOpr()));
+		rel.setOpr(Util.diffRandEnum(rel.getOpr(), RelOperator.class));
 
 		Expr left = rel.getLeft();
 		rel.setLeft(rel.getRight());

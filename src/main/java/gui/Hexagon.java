@@ -1,7 +1,6 @@
 package gui;
 
 import javafx.geometry.Point2D;
-import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Polygon;
 import javafx.scene.text.Text;
@@ -9,6 +8,8 @@ import javafx.scene.transform.Rotate;
 import simulation.Hex;
 
 import java.util.Arrays;
+
+import static model.Constants.DirectionConstants.*;
 
 public class Hexagon {
 
@@ -67,8 +68,6 @@ public class Hexagon {
         );
         arrow.setFill(Color.WHITE);
 
-        //TODO: fix
-        // Setting the text that represents the Critter's size
         text = new Text(getCenter().getX()-4, getCenter().getY() - (double)height/2, String.valueOf(hex.getCritter().getSize()));
     }
 
@@ -90,28 +89,21 @@ public class Hexagon {
         return hasArrow;
     }
 
-    public void giveArrow() {
-        hasArrow = true;
+    public void setArrow(boolean value) {
+        hasArrow = value;
     }
 
     public Text getText() {
         return text;
     }
 
-    public void attachTopRight(Hexagon hexagon) {
-        hexagon.moveCorner((int)(vertices[1].getX() + 0.5f * sideLength)+1, (int)(this.getCorner(0).getY() - this.height));
-    }
-
-    public void attachBottomRight(Hexagon hexagon) {
-        hexagon.moveCorner((int)(vertices[1].getX() + 0.5f * sideLength)+1, (int)(this.getCorner(0).getY() + this.height));
-    }
-
-    public void attachBottom(Hexagon hexagon) {
-        hexagon.moveCorner((int)(vertices[0].getX()), (int)(vertices[4].getY())+1);
-    }
-
-    public void attachTop(Hexagon hexagon) {
-        hexagon.moveCorner((int)(vertices[0].getX()), (int)(vertices[0].getY()-2*height-1));
+    public void attachDirection(Hexagon hexagon, int direction) {
+        switch (direction) {
+            case TOP -> hexagon.moveCorner((int) (vertices[0].getX()), (int) (vertices[0].getY() - 2 * height - 1));
+            case BOTTOM -> hexagon.moveCorner((int)(vertices[0].getX()), (int)(vertices[4].getY())+1);
+            case BOTTOM_RIGHT -> hexagon.moveCorner((int)(vertices[1].getX() + 0.5f * sideLength)+1, (int)(this.getCorner(0).getY() + this.height));
+            case TOP_RIGHT -> hexagon.moveCorner((int)(vertices[1].getX() + 0.5f * sideLength)+1, (int)(this.getCorner(0).getY() - this.height));
+        }
     }
 
     public Point2D getCenter() {
@@ -121,17 +113,6 @@ public class Hexagon {
     public Polygon getPolygon() {
         return this.polygon;
     }
-
-//    @Override
-//    public Color getColor() {
-//        return this.color;
-//    }
-
-    public void setColor(Color color) {
-        polygon.setFill(color);
-    }
-    // getCenter
-    // draw from center (Constructor)
 
     public Hex getHex() {
         return this.hex;

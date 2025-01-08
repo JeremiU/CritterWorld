@@ -27,18 +27,9 @@ public class ControllerImpl implements Controller {
     @Override
     public boolean loadWorld(String filename, boolean enableManna, boolean enableForcedMutation) {
         currentWorld = WorldFactory.fromFile(filename);
-        //TODO need to take care of "enableManna" and "enableForcedMutation"
         return true;
     }
 
-    /**
-     * Loads critter definition from filename and randomly places n critters with that definition
-     * into the world.
-     *
-     * @param filename name of the critter spec file.
-     * @param n        number of critter to add.
-     * @return whether all critters are successfully loaded.
-     */
     @Override
     public boolean loadCritters(String filename, int n) {
         if (n < 0) return false;
@@ -49,12 +40,6 @@ public class ControllerImpl implements Controller {
         return true;
     }
 
-    /**
-     * Advances the world by n time steps.
-     *
-     * @param n number of steps.
-     * @return false if the world has not been initialized or n is negative, true otherwise.
-     */
     @Override
     public boolean advanceTime(int n) {
         if (n < 0 || getReadOnlyWorld() == null) return false;

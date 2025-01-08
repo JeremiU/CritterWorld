@@ -127,20 +127,20 @@ public final class Constants {
      */
     public static final int MIN_MEMORY = 7;
 
-    // default number of critters to load in per file
-    public static final int DEFAULT_CRITTER_LOAD = 4;
-
     /**
      * MANNA_COUNT (default: 10)
      * Number of food items randomly dropped onto the map per time step per 1,000 hexes on the board
      */
-    public static final int MANNA_COUNT = 10;
+    public static final int MANNA_COUNT = 1;
 
     /**
      * MANNA_COUNT (default: 10)
      * Value to increase food by
      */
     public static final int MANNA_AMOUNT = 10;
+
+    public static final String PANEL_TEMPLATE = "-fx-font-weight: 800; -fx-background-color: %s; -fx-text-fill: %s;";
+
 
     /**
      * Class containing Memory Constants, namely indices

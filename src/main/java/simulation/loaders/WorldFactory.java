@@ -7,6 +7,8 @@ import simulation.World;
  */
 public class WorldFactory {
 
+    private WorldFactory() {}
+
     /**
      * Starts a new simulation with a world populated by randomly placed rocks.
      */

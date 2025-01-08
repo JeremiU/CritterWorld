@@ -2,6 +2,7 @@ package mutations;
 
 import ast.*;
 import cms.util.maybe.Maybe;
+import console.Logger;
 import main.Util;
 
 import java.util.List;
@@ -57,9 +58,8 @@ public class ReplaceMutation implements Mutation {
                 if (b.get()) return true;
             }
         }
-        if (n instanceof ConditionRelation) {
-            return ((AbstractNode) n).findNodeOfType(NodeCategory.RELATION).isPresent();
-        }
+        if (n instanceof ConditionRelation) return ((AbstractNode) n).findNodeOfType(NodeCategory.RELATION).isPresent();
+
         if (n instanceof ExprBinary) {
             // find an expression in child subtree
             for (NodeCategory nodeCategory : Util.exprNodes)
@@ -86,19 +86,13 @@ public class ReplaceMutation implements Mutation {
         nodeToReplace.setParent(null);
 
         if (ref.get() instanceof ConditionRelation) {
-            if (((ConditionRelation) ref.get()).getLeft().equals(nodeToReplace)) {
-                System.out.println(((ConditionRelation) ref.get()).getLeft());
+            if (((ConditionRelation) ref.get()).getLeft().equals(nodeToReplace))
                 ((ConditionRelation) ref.get()).setLeft(replacement);
-            } else {
-                ((ConditionRelation) ref.get()).setRight(replacement);
-            }
+            else ((ConditionRelation) ref.get()).setRight(replacement);
         }
         if (ref.get() instanceof ExprBinary) {
-            if (((ExprBinary) ref.get()).getLeft().equals(nodeToReplace)) {
-                ((ExprBinary) ref.get()).setLeft(replacement);
-            } else {
-                ((ExprBinary) ref.get()).setRight(replacement);
-            }
+            if (((ExprBinary) ref.get()).getLeft().equals(nodeToReplace)) ((ExprBinary) ref.get()).setLeft(replacement);
+            else ((ExprBinary) ref.get()).setRight(replacement);
         }
     }
 
@@ -121,7 +115,6 @@ public class ReplaceMutation implements Mutation {
 
         if (ref.get() instanceof Rule) ((Rule) ref.get()).setCondition(replacement);
         if (ref.get() instanceof ConditionBinary) {
-            // need to check if the node to replace is the left or right child
             if (((ConditionBinary) ref.get()).getLeft().equals(nodeToReplace)) {
                 ((ConditionBinary) ref.get()).setLeft(replacement);
             } else {

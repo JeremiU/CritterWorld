@@ -48,7 +48,7 @@ public class Util {
     /**
      * Given enumClass, a class of Enums, return a random enum
      */
-    public static <E> E randEnumFromClass(Class<E> enumClass) {
+    public static <E extends Enum<E>> E randEnumFromClass(Class<E> enumClass) {
         E[] enumConstants = enumClass.getEnumConstants();
         return enumConstants[randomInt(enumConstants.length)];
     }
@@ -56,11 +56,9 @@ public class Util {
     /**
      * Given currentType, a constant of enum E, return a different constant of E
      */
-    public static <E> E diffRandEnum(E currentType) {
+    public static <E extends Enum<E>> E diffRandEnum(E currentType, Class<E> enumClass) {
         E newType = currentType;
-        while (newType == currentType) {
-            newType = (E) randEnumFromClass(currentType.getClass());
-        }
+        while (newType == currentType) newType = randEnumFromClass(enumClass);
         return newType;
     }
 

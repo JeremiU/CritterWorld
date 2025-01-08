@@ -8,12 +8,11 @@ plugins {
 apply plugin: 'java'
 // external repositories where dependencies of your project are found
 repositories {
-    // Use 'jcenter' for resolving external dependencies
-    jcenter()
+    mavenCentral()
 }
 
 javafx {
-    version = "15"
+    version = "19"
     modules = [ 'javafx.controls', 'javafx.web', 'javafx.fxml' ]
 }
 
@@ -27,14 +26,23 @@ sourceSets {
 }
 
 dependencies {
-    // the spark webserver
-    implementation 'com.sparkjava:spark-core:2.9.1'
+    // the spark webserver, excluding vulnerable groups
+    implementation('com.sparkjava:spark-core:2.9.1') {
+        exclude group: 'org.eclipse.jetty', module: 'jetty-http'
+        exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+        exclude group: 'org.eclipse.jetty', module: 'jetty-webapp'
+        exclude group: 'org.eclipse.jetty', module: 'jetty-xml'
+    }
     // GSON, for parsing and generating JSON
-    implementation 'com.google.code.gson:gson:2.8.5'
+    implementation 'com.google.code.gson:gson:2.8.9'
     // run tests with JUnit 5
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.5.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.5.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.5.2'
+    // JavaFX dependencies (ensuring they match the version specified)
+    implementation "org.openjfx:javafx-controls:19"
+    implementation "org.openjfx:javafx-web:19"
+    implementation "org.openjfx:javafx-fxml:19"
 }
 
 test {
@@ -45,9 +53,6 @@ test {
     }
 }
 
-mainClassName = 'console.Console'
-
-// console jar for A5
 jar {
     archiveBaseName.set('Console')
     manifest {
@@ -59,7 +64,7 @@ jar {
 }
 
 // parse and mutate jar for A4
-task parseAndMutateJar(type: Jar) {
+tasks.register('parseAndMutateJar', Jar) {
     archiveBaseName.set('ParseAndMutate')
     manifest {
         attributes 'Main-Class': 'main.ParseAndMutateApp'
@@ -69,5 +74,17 @@ task parseAndMutateJar(type: Jar) {
     }
 }
 
-// make jar task assemble both jars
+tasks.register('runGUI', JavaExec) {
+    mainClass = 'gui.DisplayController'
+    classpath = sourceSets.main.runtimeClasspath
+    args = [] // Add any necessary arguments here, if needed
+
+    jvmArgs = [
+            '--module-path', classpath.asPath,
+            '--add-modules', 'javafx.controls,javafx.fxml,javafx.web',
+            '--add-opens', 'java.desktop/sun.awt.X11=ALL-UNNAMED'
+    ]
+}
+
 jar.dependsOn parseAndMutateJar
+run.dependsOn runGUI

@@ -118,22 +118,15 @@ public enum TokenType {
 
     public static int getMemStr(Tokenizer t) throws SyntaxError {
         Token token = t.next();
-        switch (token.getType()) {
-            case ABV_MEMSIZE:
-                return 0;
-            case ABV_DEFENSE:
-                return 1;
-            case ABV_OFFENSE:
-                return 2;
-            case ABV_SIZE:
-                return 3;
-            case ABV_ENERGY:
-                return 4;
-            case ABV_PASS:
-                return 5;
-            case ABV_POSTURE:
-                return 6;
-        }
-        throw new SyntaxError(t.lineNumber(), "Expected a Mem ABV but got " + token.getType());
+        return switch (token.getType()) {
+            case ABV_MEMSIZE -> 0;
+            case ABV_DEFENSE -> 1;
+            case ABV_OFFENSE -> 2;
+            case ABV_SIZE -> 3;
+            case ABV_ENERGY -> 4;
+            case ABV_PASS -> 5;
+            case ABV_POSTURE -> 6;
+            default -> throw new SyntaxError(t.lineNumber(), "Expected a Mem ABV but got " + token.getType());
+        };
     }
 }

@@ -6,6 +6,8 @@ import ast.ExprBinary;
 import cms.util.maybe.Maybe;
 import main.Util;
 
+import static ast.ExprBinary.BinExprOperator;
+
 /**
  * A class representing Faults for the BinaryExpr Node
  */
@@ -16,7 +18,7 @@ public class BinaryExpressionFault implements Fault {
 		if (!canApply(node)) return Maybe.none();
 
 		ExprBinary binOpr = (ExprBinary) node;
-		binOpr.setOpr(Util.diffRandEnum(binOpr.getOpr()));
+		binOpr.setOpr(Util.diffRandEnum(binOpr.getOpr(), BinExprOperator.class));
 
 		Expr temp = binOpr.getLeft();
 		binOpr.setLeft(binOpr.getRight());
