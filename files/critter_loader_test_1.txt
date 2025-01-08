@@ -1,0 +1,14 @@
+species: placeholder_species
+
+memsize: 7
+defense: 2
+offense: 3
+// hello there
+size: 4
+energy: 5
+
+
+// eror ror orosdfjsj fkj sdkfj
+posture: 6
+
+nearby[2] = 3 or ENERGY > 0 --> bud;

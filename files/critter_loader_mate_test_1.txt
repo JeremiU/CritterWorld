@@ -1,0 +1,14 @@
+species: SP_2
+
+memsize: 7
+defense: 2
+offense: 3
+// hello there
+size: 4
+energy: 5
+
+posture: 6
+
+POSTURE != 17 --> POSTURE := 17;
+nearby[3] = 0 and ENERGY > 2500 --> bud;
+{ENERGY > SIZE * 400 and SIZE < 7} --> grow;

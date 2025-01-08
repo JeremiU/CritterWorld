@@ -1,0 +1,1 @@
+nearby[3] = 0 and ENERGY > 2500 --> bud;

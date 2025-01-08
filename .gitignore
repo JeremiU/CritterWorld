@@ -35,3 +35,4 @@ out/
 
 #Coverage Report directory
 cvg_rep/
+*.class

@@ -1,0 +1,10 @@
+species: SP_MOVER
+
+memsize: 7
+defense: 2
+offense: 3
+size: 1
+energy: 100
+posture: 6
+
+1 = 1 --> forward;

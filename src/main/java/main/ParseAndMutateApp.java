@@ -17,8 +17,8 @@ import java.nio.file.Paths;
 public class ParseAndMutateApp {
 
     public static void main(String[] args) {
-        args = new String[]{"--mutate", "100", "/src/test/resources/files/mutated_critter_1.txt"
-        };
+//        args = new String[]{"--mutate", "100", "/src/test/resources/files/mutated_critter_1.txt"
+//        };
 
         int n = 0;
         String file;

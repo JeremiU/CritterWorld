@@ -1,2 +1,0 @@
-name Small
-size 1 1

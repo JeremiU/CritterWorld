@@ -1,0 +1,16 @@
+species: SP_2
+
+memsize: 7
+defense: 2
+offense: 3
+// hello there
+size: 4
+energy: 5
+
+
+// eror ror orosdfjsj fkj sdkfj
+posture: 6
+
+ahead[0] < -1 and ENERGY < 500 * SIZE --> eat;
+(ahead[1] / 10 mod 100) != 17 and ahead[1] > 0 --> attack;
+1 = 1 --> wait;

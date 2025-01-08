@@ -1,0 +1,12 @@
+species: ruthless ricky
+
+ENERGY <= SIZE * 5 --> wait;
+ahead[1] > 0 --> attack;
+ahead[1] < -1 --> eat;
+nearby[1] > 0 or nearby[2] > 0 or nearby[3] > 0 --> right;
+ahead[1] = -1 --> left;
+random[6] = 0 --> left;
+random[6] = 1 --> right;
+random[6] > 1 --> forward;
+1 = 1 --> wait;
+
