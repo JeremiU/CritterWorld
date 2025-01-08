@@ -1,6 +1,7 @@
 package simulation;
 
 import ast.*;
+import console.Logger;
 import main.Util;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,19 +26,20 @@ public class Interpreter {
             Rule rule = ((ProgramImpl) program).getRule(i);
             boolean cmdCondition = parseCond((Condition) rule.nodeAt(1));
 
-            if (!cmdCondition) return false;
-            System.out.println("cond true!");
+            if (!cmdCondition) continue;
+            Logger.info("condition true!", "Interpreter:run", Logger.FLAG_INTERPRETER);
 
             for (int c = 0; c < rule.cmdCnt(); c++) {
                 parseCommand(rule.getCommand(c));
                 if (rule.getCommand(c).getType() != Cmd.CmdType.UPDATE) {
-                    System.out.println("Action command " + rule.getCommand(c).getType() + " executed ");
+                    Logger.info("Action command " + rule.getCommand(c).getType() + " executed ", "Interpreter:run", Logger.FLAG_INTERPRETER);
                     actionUpdate = true;
                     break;
                 }
             }
             this.critter.setLastRule(rule, i);
-            System.out.println("LAST RULE: ("+i+") " + this.critter.getLastRuleString());
+            Logger.info("LAST RULE: ("+i+") " + this.critter.getLastRuleString(), "Interpreter:run", Logger.FLAG_INTERPRETER);
+            return actionUpdate;
         }
         return actionUpdate;
     }

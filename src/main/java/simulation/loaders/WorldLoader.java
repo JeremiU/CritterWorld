@@ -12,7 +12,7 @@ import java.util.List;
 public class WorldLoader extends AbstractLoader {
 
     private String worldName = "unnamed";
-    private int width = 10, height = 10;
+    private int width, height;
     private final List<Critter> critters = new ArrayList<>();
     private final List<Hex> rocks = new ArrayList<>();
     private final List<Hex> foods = new ArrayList<>();
@@ -60,7 +60,6 @@ public class WorldLoader extends AbstractLoader {
         this.world = new World(worldName, width, height, critters, rocks, foods);
         readFile();
         for (Critter critter : critters) critter.setWorld(this.world);
-        this.world.setCritters(critters);
         return world;
     }
 

@@ -8,6 +8,7 @@ import java.util.Arrays;
 
 import static model.Constants.DirectionConstants.DIR_AMOUNT;
 import static model.Constants.ROCK_VALUE;
+import static simulation.Hex.HexType.CRITTER;
 
 /**
  * Represents a Hex tile in the world.
@@ -26,7 +27,7 @@ public class Hex {
     }
 
     public Hex(Coordinate coordinate, Critter critter) {
-        this(coordinate.column(), coordinate.row(), HexType.CRITTER);
+        this(coordinate.column(), coordinate.row(), CRITTER);
         this.critter = critter;
         this.critter.setLocation(coordinate);
     }
@@ -36,23 +37,27 @@ public class Hex {
         this.foodValue = foodValue;
     }
 
-    // CRITTER Operations
     public void tryTickCritter() {
         if (critter != null) this.critter.tick();
     }
 
     public void setCritter(Critter critter) {
         this.critter = critter;
-        type = HexType.CRITTER;
+        type = CRITTER;
+    }
+
+    public void setCritter(Critter critter, Color critterColor) {
+        this.critter = critter;
+        critter.setColor(critterColor);
+        type = CRITTER;
     }
 
     public Critter getCritter() {
         return this.critter;
     }
 
-    // Are the coordinates given valid under the hexagonal system?
     public static boolean isValidHexCoordinate(int column, int row) {
-        return (column + row) % 2 == 0;
+        return (column + row) % 2 == 0 && column >= 0 && row >= 0;
     }
 
     public Coordinate getCoordinate() {
@@ -73,10 +78,11 @@ public class Hex {
 
     public void setType(HexType type) {
         this.type = type;
+        if (type != CRITTER) this.critter = null;
     }
 
     public void becomeFood() { //on Critter death
-        type = HexType.FOOD;
+        this.type = HexType.FOOD;
         critter = null;
     }
 
@@ -87,6 +93,7 @@ public class Hex {
     public void setFoodValue(int foodValue) {
         this.foodValue = foodValue;
         if (foodValue == 0) type = HexType.EMPTY;
+        if (foodValue > 0) type = HexType.FOOD;
     }
 
     public enum HexType {EMPTY, ROCK, FOOD, CRITTER, INVALID}
@@ -95,19 +102,14 @@ public class Hex {
      * Prints information about the hex to the console
      */
     public String printInfo() {
-        return switch (type) {
-            case INVALID ->
-                "This hex should not exist";
-            case EMPTY ->
-                "This is an empty hex";
-            case FOOD ->
-                foodValue + " Food present.";
-            case ROCK ->
-                "This hex has a big, heavy rock in it.";
+        return getHexagon().getHex().getCoordinate() + ": " + switch (type) {
+            case INVALID -> "this hex should not exist";
+            case EMPTY -> "empty hex";
+            case FOOD -> foodValue + " Food present";
+            case ROCK -> "a big, heavy rock";
             case CRITTER ->
                 "CRITTER FOUND!\nSPECIES: " + critter.getSpecies() + "\nMEM: " +
                         Arrays.toString(critter.getMemory()) + "\nRULESET: \n" + critter.getProgram() + "\nLAST RULE RUN: \n" + critter.getLastRuleString();
-                //TODO: print last rule ran! Interpreter must be complete for this.
         };
     }
 
@@ -136,21 +138,18 @@ public class Hex {
     }
 
     public Hexagon getHexagon() {
+        var v = new Hexagon(30, getColor(), this);
+        v.setArrow(type == CRITTER);
+        return v;
+    }
+
+    public Color getColor() {
         return switch (type) {
-            case EMPTY:
-                yield new Hexagon(30, Color.DARKGREEN, this);
-            case ROCK:
-                yield new Hexagon(30, Color.DARKGRAY, this);
-            case FOOD:
-                yield new Hexagon(30, Color.DARKMAGENTA, this);
-            case CRITTER: {
-                //TODO CUSTOM CRITTER COLOR
-                Hexagon hexagon = new Hexagon(30, Color.GOLDENROD, this);
-                hexagon.giveArrow();
-                yield hexagon;
-            }
-            case INVALID:
-                yield new Hexagon(30, Color.PURPLE, this);
+            case EMPTY -> Color.WHITE;
+            case ROCK -> Color.DARKGRAY;
+            case FOOD -> Color.DARKMAGENTA;
+            case CRITTER -> this.critter.getColor();
+            case INVALID -> Color.RED;
         };
     }
 }

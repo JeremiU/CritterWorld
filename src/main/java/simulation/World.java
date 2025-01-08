@@ -1,6 +1,10 @@
 package simulation;
 
 import cms.util.maybe.Maybe;
+import console.Logger;
+import gui.DisplayController;
+import gui.Grid;
+import javafx.scene.paint.Color;
 import main.Util;
 import model.ReadOnlyCritter;
 import model.ReadOnlyWorld;
@@ -20,29 +24,47 @@ public class World implements ReadOnlyWorld {
     private final int width;
     private final int height;
 
-    private int steps = 0;
-    private int critterNumber;
+    private int steps = 0, stepVal, critterNumber = 0;
 
     private final String worldName;
 
     private boolean enableManna = true, enableForcedMutation;
 
+    private Grid gridAssociated;
+    private final List<Color> critterColorspace;
+
+    private int colorIndex;
+
+    private DisplayController displayController;
+
+    private ArrayList<Coordinate> insertedCordinates = new ArrayList<>();
+
     public World(String worldName, int width, int height, List<Critter> critters, List<Hex> rocks, List<Hex> foods) {
         this.worldName = worldName;
-        this.width = width;
-        this.height = height;
-        hexes = new Hex[height][width];
-        critterNumber = critters.size();
+        this.width = width+4;
+        this.height = height+2;
+        hexes = new Hex[this.height][this.width];
+        critterColorspace = generateColors( (int) (width * height * 0.02));
+        stepVal = Util.randomInt(Integer.MAX_VALUE);
 
-        for (int i = 0; i < hexes.length; i++) {
-            for (int j = 0; j < hexes[i].length; j++) {
-                hexes[i][j] = new Hex(i, j, Hex.HexType.EMPTY);
-            }
-        }
+        for (int i = 0; i < hexes.length; i++)
+            for (int j = 0; j < hexes[i].length; j++)
+                hexes[i][j] = new Hex(j, i, Hex.HexType.EMPTY);
 
         for (Hex rock : rocks) hexes[rock.getRow()][rock.getColumn()] = rock;
         for (Hex food : foods) hexes[food.getRow()][food.getColumn()] = food;
-        for (Critter critter : critters) hexes[critter.getRow()][critter.getColumn()].setCritter(critter);
+        for (Critter critter : critters) hexes[critter.getRow()][critter.getColumn()].setCritter(critter, getNewCritterColor());
+
+        for (Hex h : hexes[0]) h.setType(Hex.HexType.ROCK);
+        for (Hex h : hexes[1]) h.setType(Hex.HexType.ROCK);
+
+        for (Hex[] h : hexes) {
+            h[0].setType(Hex.HexType.ROCK);
+            h[h.length-1].setType(Hex.HexType.ROCK);
+        }
+
+        for (Hex h : hexes[hexes.length-2]) h.setType(Hex.HexType.ROCK);
+        for (Hex h : hexes[hexes.length-3]) h.setType(Hex.HexType.ROCK);
     }
 
     public World(String worldName, int width, int height, List<Hex> rocks, List<Hex> foods) {
@@ -50,7 +72,7 @@ public class World implements ReadOnlyWorld {
     }
 
     public World() {
-        this("New World", WIDTH, HEIGHT, new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+        this("a New World", WIDTH, HEIGHT, new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
 
         // Placing rocks
         for (int i = 0; i < 5; i++) {
@@ -63,7 +85,6 @@ public class World implements ReadOnlyWorld {
                 rockColumn = coordinate.column();
                 rockRow = coordinate.row();
             }
-
             hexes[rockRow][rockColumn] = new Hex(rockColumn, rockRow, Hex.HexType.ROCK);
         }
     }
@@ -71,18 +92,19 @@ public class World implements ReadOnlyWorld {
     public void insertCritter(Critter critter) {
         Coordinate coordinate = generateValidCoordinate();
 
-        while (hexAt(coordinate).getType() == Hex.HexType.EMPTY) {
-            coordinate = generateValidCoordinate();
-        }
+        while (hexAt(coordinate).getType() != Hex.HexType.EMPTY) coordinate = generateValidCoordinate();
+
         insertCritterAtLocation(critter, coordinate.column(), coordinate.row());
+        insertedCordinates.add(coordinate);
     }
 
-    //precondition: critter, col, row = valid
     public void insertCritterAtLocation(Critter critter, int col, int row) {
         if (hexes[row][col].getType() == Hex.HexType.CRITTER) return;
-
         critter.setLocation(col, row);
+        Color c = getNewCritterColor();
+        critter.setColor(c);
         hexes[row][col].setCritter(critter);
+        critterNumber++;
     }
 
     public void setHex(Coordinate coordinate, Hex hex) {
@@ -94,30 +116,27 @@ public class World implements ReadOnlyWorld {
     }
 
     public Hex hexAt(Coordinate coordinate) {
-        if (coordinate.row() > hexes.length || coordinate.column() > hexes[coordinate.row()].length) return new Hex(-1,-1, Hex.HexType.INVALID);
+        if (coordinate.column() < 0 || coordinate.row() < 0 || coordinate.row() >= hexes.length || coordinate.column() >= hexes[coordinate.row()].length)
+            return new Hex(-1,-1, Hex.HexType.INVALID);
         return hexes[coordinate.row()][coordinate.column()];
     }
 
     public void step(int n) {
         steps += n;
-        for (int k = 0; k < n; k++)
+        for (int k = 0; k < n; k++) {
+            stepVal = Util.diffRandNum(stepVal, Integer.MAX_VALUE);
             for (Hex[] hex : hexes)
-                for (Hex value : hex) value.tryTickCritter();
+                for (Hex value : hex) { //stepVal ensures that critter executes once per step
+                    if (value.getCritter() != null && value.getCritter().getStepVal() != stepVal) {
+                        value.getCritter().setStepVal(stepVal);
+                        value.tryTickCritter();
+                    }
+                }
+        }
     }
 
     public int getSteps() {
         return steps;
-    }
-
-    public int critterNumber() {
-        return critterNumber;
-    }
-
-    public void setCritters(List<Critter> critters) {
-        critterNumber = critters.size();
-        for (Critter critter : critters) {
-            hexes[critter.getRow()][critter.getColumn()].setCritter(critter);
-        }
     }
 
     @Override
@@ -141,9 +160,8 @@ public class World implements ReadOnlyWorld {
         System.out.println(this);
     }
 
-    @Override
     public int getNumberOfAliveCritters() {
-        return 0; //TODO FIX
+        return critterNumber;
     }
 
     @Override
@@ -204,7 +222,7 @@ public class World implements ReadOnlyWorld {
     public void addFood() {
         if (!this.enableManna) return;
         if (Util.randomInt(this.getNumberOfAliveCritters()) != 0) return; // 1/n
-        int hexCount = (int) Math.floor((MANNA_COUNT * getHeight() * getWidth()) / 1000.0);
+        int hexCount = (int) Math.floor((MANNA_COUNT * getHeight() * getWidth()) / 1_000.0);
         while (hexCount > 0) {
             Coordinate c = generateValidCoordinate();
             Hex cHex = this.hexAt(c);
@@ -212,8 +230,58 @@ public class World implements ReadOnlyWorld {
                 c = generateValidCoordinate();
                 cHex = this.hexAt(c);
             }
-            cHex.setFoodValue(this.hexAt(c).getFoodValue() + MANNA_AMOUNT);
+            cHex.setFoodValue(this.hexAt(c).getFoodValue() + MANNA_AMOUNT); //doesn't actually change?
+            Logger.info("Set " + cHex.getFoodValue() + " food at " + c  + "!", "World:addFood", Logger.FLAG_WORLD);
+            updateHex(c);
             hexCount--;
         }
+    }
+
+    public void updateHex(Coordinate coordinate) {
+        getGrid().updateHexagon(coordinate);
+    }
+
+    public Grid getGrid() {
+        return gridAssociated;
+    }
+
+    public void setGrid(Grid grid) {
+        this.gridAssociated = grid;
+    }
+
+    protected void decrementCritterNumber() {
+        this.critterNumber--;
+        if (displayController != null) displayController.updateDashboard();
+    }
+
+    public Color getNewCritterColor() {
+        colorIndex = Util.diffRandNum(colorIndex, critterColorspace.size());
+        return critterColorspace.remove(colorIndex);
+    }
+
+    private List<Color> generateColors(int count) {
+        List<Color> colors = new ArrayList<>();
+        double hueStep = 360.0 / count; // Divide the hue spectrum
+        double saturation = 0.7f;     // Fixed saturation
+        double brightness = 0.8f;     // Fixed brightness
+
+        for (int i = 0; i < count; i++) colors.add(Color.hsb(i * hueStep, saturation, brightness));
+        return colors;
+    }
+
+    public void setDisplayController(DisplayController controller) {
+        this.displayController = controller;
+    }
+
+    public void setEnableManna(boolean enableManna) {
+        this.enableManna = enableManna;
+    }
+
+    public ArrayList<Coordinate> getInsertedCordinates() {
+        return insertedCordinates;
+    }
+
+    public void clearInsertedCordinates() {
+        this.insertedCordinates.clear();
     }
 }

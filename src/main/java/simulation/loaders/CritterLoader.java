@@ -1,7 +1,9 @@
 package simulation.loaders;
 
 import ast.ProgramImpl;
+import console.Logger;
 import exceptions.SyntaxError;
+import org.eclipse.jetty.util.log.Log;
 import parse.Parser;
 import parse.ParserFactory;
 import simulation.Critter;
@@ -34,10 +36,7 @@ public class CritterLoader extends AbstractLoader {
 
     @Override
     public void readLine(String line) {
-        // Reading the file line by line
         line = line.trim();
-
-        // Ignoring whitespace and comments
         if (line.isEmpty() || line.startsWith("//")) return;
         if (line.contains("//")) line = line.substring(0, line.indexOf("//"));
         String[] words = line.trim().split(" ");
@@ -70,13 +69,12 @@ public class CritterLoader extends AbstractLoader {
         try {
             program = (ProgramImpl) parser.parse(r);
         } catch (SyntaxError e) {
-            System.err.println("Error when parsing Critter from file: <invalid program>");
-            System.out.println(e.getMessage());
+            Logger.error("Syntax Error " + e.getMessage(), "CritterLoader:afterRead", Logger.FLAG_CRITTER_LOADER);
         }
     }
 
     public Critter createCritter() {
-        System.out.println("New critter loaded");
+        Logger.info("New critter loaded " + this.species, "CritterLoader:createCritter", Logger.FLAG_CRITTER_LOADER);
         return new Critter(currentWorld, species, memsize, defense, offense, size, energy, posture, program);
     }
 
@@ -95,7 +93,8 @@ public class CritterLoader extends AbstractLoader {
             defVal = true;
         }
         if (defVal)
-            System.err.println("Invalid line: '" + line + "'\n" + "default value assigned. (CritterLoader)");
+            Logger.error("Invalid line: '" + line + "'\n" + "default value assigned. (CritterLoader)"
+                    , "CritterLoader:parseOrDefault", Logger.FLAG_CRITTER_LOADER);
         return defVal ? defaultValue : i;
     }
 }

@@ -10,11 +10,21 @@
 <?import javafx.scene.layout.VBox?>
 
 <?import javafx.scene.text.TextFlow?>
-<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.text.Text?>
+<?import javafx.scene.control.CheckBox?>
 <VBox prefHeight="600.0" prefWidth="923.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.DisplayController">
     <AnchorPane VBox.vgrow="ALWAYS">
-        <TextFlow fx:id="helpLabels" layoutX="15.0" layoutY="10.0" prefHeight="75.0" prefWidth="223.0">
-            <!-- Dashboard Labels: added in Java bc \n -->
+        <TextFlow layoutX="15.0" layoutY="10.0" prefHeight="75.0" prefWidth="223.0">
+            <Text fx:id="stepsText" text="Steps: 0" />
+            <Text text="&#xD;"/>
+            <Text fx:id="crittersText" text="Critters: 0" />
+            <Text text="&#xD;"/>
+            <Text text="MOUSEWHEEL, +/- : zoom in/out" />
+            <Text text="&#xD;"/>
+            <Text text="WASD, ←↑↓→ : move grid" />
+            <Text text="&#xD;"/>
+            <Text text="LEFT CLICK : view hex information" />
         </TextFlow>
 
         <!-- Central StackPane for mainGroup -->
@@ -25,25 +35,26 @@
         </StackPane>
 
         <!-- Information and Console Labels (Console placed below) -->
-        <Label fx:id="displayConsole" layoutX="14.0" layoutY="100.0" prefHeight="400.0" prefWidth="211.0"
-               style="-fx-font-weight: 800; -fx-background-color: cyan;" text="Information Panel" wrapText="true"
+        <Label fx:id="infoPanel" layoutX="14.0" layoutY="100.0" prefHeight="400.0" prefWidth="211.0"
+               style="-fx-font-weight: 800; -fx-background-color: teal; -fx-text-fill: white;" text="Information Panel" wrapText="true"
                alignment="CENTER"/>
     </AnchorPane>
 
     <!-- Control Buttons Layout -->
     <HBox alignment="CENTER_LEFT" AnchorPane.leftAnchor="15.0" AnchorPane.rightAnchor="15.0" style="-fx-background-color: lightblue;">
         <Button fx:id="onPrintClick" mnemonicParsing="false" onAction="#onPrintClick" text="Print"/>
-        <Button fx:id="singleStep" mnemonicParsing="false" onAction="#singleStep" text="Step"/>
-        <Button fx:id="timerStart" mnemonicParsing="false" onAction="#timerStart" text="Play"/>
-        <Button fx:id="pauseTimer" mnemonicParsing="false" onAction="#pauseTimer" text="Pause"/>
-        <TextField fx:id="playRate" promptText="Timer Interval" />
-        <Button fx:id="loadCritter" mnemonicParsing="false" onAction="#loadCritterFile" text="Load Critter"/>
-        <TextField fx:id="critterNumber" promptText="# of Critters to Load" />
+        <Button fx:id="singleStep" mnemonicParsing="false" onAction="#step" text="Step"/>
+        <Button fx:id="loadCritter" mnemonicParsing="false" onAction="#loadCritterFile" text="Load in 10 Critters"/>
+        <Slider fx:id="critterNumber" min="1" max="19" value="10" majorTickUnit="3" minorTickCount="1" prefWidth="100" showTickMarks="true"/>
         <MenuButton fx:id="loadWorldMenu" text="Load World">
             <items>
                 <MenuItem onAction="#newWorld" text="New World"/>
                 <MenuItem onAction="#chooseWorld" text="Load File"/>
             </items>
         </MenuButton>
+        <Button fx:id="timerButton" mnemonicParsing="false" onAction="#timerButton" text="▶"/>
+        <Slider fx:id="playRate" min="1" max="10" value="1" majorTickUnit="3" minorTickCount="1" prefWidth="100" showTickMarks="true"/>
+        <CheckBox fx:id="manna" text="Enable Manna" onAction="#updateManna" selected="true"/>
+        <CheckBox fx:id="forcedMutation" text="Force Mutations" onAction="#updateMutation"/>
     </HBox>
 </VBox>

@@ -4,6 +4,8 @@ import ast.Program;
 import ast.ProgramImpl;
 import ast.Rule;
 import cms.util.maybe.Maybe;
+import console.Logger;
+import javafx.scene.paint.Color;
 import main.Util;
 import model.ReadOnlyCritter;
 
@@ -32,6 +34,10 @@ public class Critter implements ReadOnlyCritter {
 
     private Rule lastRule;
     private int lastRuleLine = 0;
+
+    private Color color = Color.AQUAMARINE;
+
+    private int stepVal;
 
     public Critter(World currentWorld, String species, int memSize, int defense, int offense, int size, int energy, int posture, ProgramImpl program) {
         if (memSize < MIN_MEMORY) memSize = MIN_MEMORY;
@@ -127,7 +133,8 @@ public class Critter implements ReadOnlyCritter {
         Interpreter ip = new Interpreter(this);
         boolean actionUpdate = ip.run();
         this.mem[PASS] = 1;
-        while (this.mem[PASS] < MAX_RULES_PER_TURN && !actionUpdate) {
+        while (this.mem[PASS] < MAX_RULES_PER_TURN) {
+            if (actionUpdate) break;
             actionUpdate = ip.run();
             this.mem[PASS]++;
         }
@@ -137,6 +144,14 @@ public class Critter implements ReadOnlyCritter {
 
     public int getComplexity() {
         return getProgram().numRules() * RULE_COST + (mem[OFFENSE] + mem[DEFENSE] * ABILITY_COST);
+    }
+
+    public Color getColor() {
+        return color;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
     }
 
     /**
@@ -174,18 +189,24 @@ public class Critter implements ReadOnlyCritter {
         move(direction);
     }
 
-    /**
-     * A critter uses some energy to move backward to the hex behind it.
-     * If it attempts to move and there is a critter, food, or a rock in
-     * the destination hex, the move fails but still takes energy
-     */
-    public void moveBackward() {
+   public void moveBackward() {
         move(Util.properMod(direction + DIR_AMOUNT / 2, DIR_AMOUNT));
     }
 
     private void move(int dir) {
-        if (!decrementEnergy(mem[SIZE] * MOVE_COST) || ahead(dir) != 0) return;
-        location = location.getCoordinateAt(direction);
+        if (!decrementEnergy(mem[SIZE] * MOVE_COST) || ahead(1) != 0) return;
+        if (!Hex.isValidHexCoordinate(location.getCoordinateAt(dir).column(), location.getCoordinateAt(dir).row())) return;
+        if (currentWorld.hexAt(location.getCoordinateAt(dir)).getType() != Hex.HexType.EMPTY) return;
+
+        Coordinate oldLocation = location;
+        location = location.getCoordinateAt(dir);
+
+        currentWorld.hexAt(oldLocation).setType(Hex.HexType.EMPTY);
+        currentWorld.hexAt(location).setType(Hex.HexType.CRITTER);
+        currentWorld.hexAt(location).setCritter(this);
+
+        currentWorld.updateHex(oldLocation);
+        currentWorld.updateHex(location);
     }
 
     /**
@@ -194,18 +215,21 @@ public class Critter implements ReadOnlyCritter {
      * critter can absorb, the excess food is left on the hex.
      */
     public void eat() {
-        System.out.println("EAT Action Executed");
+        Logger.info("EAT", "Critter:eat", Logger.FLAG_CRITTER_ACTION);
         if (!decrementEnergy(mem[SIZE])) return;
         if (ahead(1) >= -1) return; //NO FOOD FOUND
         int foodEnergy = -ahead(1) - 1; //-n -1
 
         Hex foodHex = hexAhead(1);
-        if (foodEnergy != foodHex.getFoodValue()) System.err.println("FOOD ENERGY != FOOD HEX");
+        if (foodEnergy != foodHex.getFoodValue()) Logger.error("FOOD ENERGY != FOOD HEX", "Critter:eat", Logger.FLAG_CRITTER_ACTION);
 
         int energyTaken = Math.min(foodEnergy, ENERGY_PER_SIZE * mem[SIZE]); //if foodVal > maximum, inc max
 
         incrementEnergy(energyTaken);
         foodHex.setFoodValue(foodHex.getFoodValue() - energyTaken);
+        if (foodHex.getFoodValue() == 0) foodHex.setType(Hex.HexType.EMPTY);
+        else foodHex.setType(Hex.HexType.FOOD);
+        currentWorld.updateHex(foodHex.getCoordinate());
     }
 
     /**
@@ -214,7 +238,7 @@ public class Critter implements ReadOnlyCritter {
      * is either empty or already contains some food.
      */
     public void serve(int energy) {
-        System.out.println("SERVE Action Executed");
+        Logger.info("SERVE," + energy, "Critter:serve", Logger.FLAG_CRITTER_ACTION);
 
         Hex frontHex = hexAhead(1);
 
@@ -224,6 +248,8 @@ public class Critter implements ReadOnlyCritter {
         decrementEnergy(mem[SIZE] + energy);
 
         frontHex.setFoodValue(frontHex.getFoodValue() + energy);
+        currentWorld.updateHex(frontHex.getCoordinate());
+        //TODO CRITTER CANT DIE OFF A SERVE
     }
 
     /**
@@ -233,7 +259,7 @@ public class Critter implements ReadOnlyCritter {
      * offensive ability of the attacker and the defensive ability of the victim
      */
     public void attack() {
-        System.out.println("ATTACK Action Executed");
+        Logger.info("ATTACK", "Critter:attack", Logger.FLAG_CRITTER_ACTION);
         if (!decrementEnergy(mem[SIZE] * ATTACK_COST)) return;
 
         Critter enemy = currentWorld.hexAt(location.getCoordinateAt(direction)).getCritter();
@@ -253,7 +279,7 @@ public class Critter implements ReadOnlyCritter {
      * A critter may use energy to increase its size by one unit.
      */
     public void grow() {
-        System.out.println("GROW Action Executed");
+        Logger.info("GROW", "Critter:grow", Logger.FLAG_CRITTER_ACTION);
         if (!decrementEnergy(mem[SIZE] * this.getComplexity() * GROW_COST)) return;
         mem[SIZE]++;
     }
@@ -264,9 +290,9 @@ public class Critter implements ReadOnlyCritter {
      * it with the same genome (possibly with some random mutations).
      */
     public void bud() {
-        System.out.println("bud start");
+        Logger.info("BUD", "Critter:bud", Logger.FLAG_CRITTER_ACTION);
         if (!decrementEnergy(BUD_COST * this.getComplexity())) return;
-        System.out.println("bud start 2");
+        Logger.info("bud condition passed", "Critter:bud", Logger.FLAG_CRITTER_ACTION);
 
         //Random mutation is performed on this Critter's program
         Program pc = (Program) this.program.clone();
@@ -277,7 +303,7 @@ public class Critter implements ReadOnlyCritter {
         if (currentWorld.hexAt(coord).getType() == Hex.HexType.INVALID) coord = location.getTop();
 
         currentWorld.insertCritterAtLocation(child, coord.row(), coord.column());
-        System.out.println("bud done");
+        Logger.info("BUD done", "Critter:bud", Logger.FLAG_CRITTER_ACTION);
     }
 
     public void mate() {
@@ -307,17 +333,9 @@ public class Critter implements ReadOnlyCritter {
         Critter child = new Critter(currentWorld, species, inheritedMem[MEM_SIZE], inheritedMem[DEFENSE], inheritedMem[OFFENSE], INITIAL_SIZE, INITIAL_ENERGY, INITIAL_POSTURE, cProgram);
 
         //place the child behind one of the parents chosen randomly
-        Hex behindHex;
-        if (thisIsMainPartner) {
-            behindHex = currentWorld.hexAt(location.getCoordinateAt(3));
-            //if this hex does not already have a critter place the child here
-        } else {
-            behindHex = currentWorld.hexAt(partner.location.getCoordinateAt(3));
-            //if this hex does not already have a critter place the child here
-        }
-        if (behindHex.getType() != Hex.HexType.CRITTER) {
+        Hex behindHex = currentWorld.hexAt(thisIsMainPartner ? location.getCoordinateAt(3) : partner.location.getCoordinateAt(3));
+        if (behindHex.getType() != Hex.HexType.CRITTER)
             currentWorld.insertCritterAtLocation(child, behindHex.getColumn(), behindHex.getRow());
-        }
     }
 
     /**
@@ -473,15 +491,13 @@ public class Critter implements ReadOnlyCritter {
                         Coordinate cFhxCoordinate = foodFhx.hx.getCoordinate().getCoordinateAt(dir);
                         if (!Hex.isValidHexCoordinate(cFhxCoordinate.column(), cFhxCoordinate.row())) continue;
 
-                        //if the neighbor coordinate is valid, get the neighbor hex
                         Hex neighborHex = this.currentWorld.hexAt(cFhxCoordinate);
                         FringeHex nFhx = new FringeHex(neighborHex);
-                        //look for this neighbor in the previous fringe
+
                         if ((nFhx = containsFringeHex(fringes.get(foodFringeIndex - 1), nFhx)) != null) {
-                            //cost will be (distance*100) + direction
                             int foodDist = foodFringeIndex - 1 + nFhx.turns;
                             int foodCost = foodDist * 100;
-                            //if the direction does not match the direction of the food hex
+
                             int foodDirection = getDirection(nFhx, foodFhx);
                             if (foodDirection != nFhx.direction) {
                                 foodDist += 1;
@@ -489,13 +505,15 @@ public class Critter implements ReadOnlyCritter {
                             }
                             foodCost += nFhx.initialTurnDirection;
 
-                            System.out.println("Food cost: " + foodCost + " for (" + nFhx.hx.getType() + "," + nFhx.hx.getColumn() + "," + nFhx.hx.getRow() + "," + nFhx.visited + "," + nFhx.turns + "," + nFhx.direction + "," + nFhx.initialTurnDirection + ")" + "(Food Hex=" + foodFhx.hx.getColumn() + "," + foodFhx.hx.getRow() + ")");
+                            Logger.info("Food cost: " + foodCost + " for (" + nFhx.hx.getType() + ","
+                                    + nFhx.hx.getColumn() + "," + nFhx.hx.getRow() + "," + nFhx.visited + ","
+                                    + nFhx.turns + "," + nFhx.direction + "," + nFhx.initialTurnDirection + ")"
+                                    + "(Food Hex=" + foodFhx.hx.getColumn() + "," + foodFhx.hx.getRow() + ")", "Critter:smell", Logger.FLAG_CRITTER_ACTION);
 
                             if (foodCost < cost) {
                                 cost = foodCost;
                                 selectedFoodFhx = foodFhx;
                             }
-
                         }
                     }
                 }
@@ -503,7 +521,7 @@ public class Critter implements ReadOnlyCritter {
         }
 
         if (selectedFoodFhx != null)
-            System.out.println("Selected food hex: (" + selectedFoodFhx.hx.getColumn() + "," + selectedFoodFhx.hx.getRow() + ")");
+            Logger.info("Selected food hex: (" + selectedFoodFhx.hx.getColumn() + "," + selectedFoodFhx.hx.getRow() + ")", "Critter:smell", Logger.FLAG_CRITTER_ACTION);
         return cost;
     }
 
@@ -519,9 +537,6 @@ public class Critter implements ReadOnlyCritter {
         return Util.randomInt(n);
     }
 
-    /**
-     * @return a clone of the program, useful for reading
-     */
     public ProgramImpl getProgram() {
         return (ProgramImpl) program.clone();
     }
@@ -539,17 +554,16 @@ public class Critter implements ReadOnlyCritter {
         return "Critter{species='" + species + '\'' + ", direction=" + direction + ", mem=" + Arrays.toString(mem) + "}";
     }
 
-    // Decrease energy. Returns whether the Critter is still alive, allowing to break the program if not.
     private boolean decrementEnergy(int val) {
         mem[ENERGY] -= val;
         if (mem[ENERGY] < 0) {
             mem[ENERGY] = 0;
             kill();
+            return false;
         }
         return mem[ENERGY] > 0;
     }
 
-    //Increases energy. Ensures the energy stays within the maximum bounds
     private void incrementEnergy(int val) {
         mem[ENERGY] += val;
         mem[ENERGY] = Math.min(mem[ENERGY], mem[SIZE] * ENERGY_PER_SIZE);
@@ -560,6 +574,8 @@ public class Critter implements ReadOnlyCritter {
         Hex deathHex = currentWorld.hexAt(location);
         deathHex.setFoodValue(deathHex.getFoodValue() + FOOD_PER_SIZE * mem[SIZE]);
         deathHex.becomeFood();
+        currentWorld.decrementCritterNumber();
+        currentWorld.updateHex(deathHex.getCoordinate());
     }
 
     public void setWorld(World currentWorld) {
@@ -608,5 +624,13 @@ public class Critter implements ReadOnlyCritter {
         for (FringeHex hex : list)
             if ((hex.hx.getColumn() == fhx.hx.getColumn()) && (hex.hx.getRow() == fhx.hx.getRow())) return hex;
         return null;
+    }
+
+    public int getStepVal() {
+        return stepVal;
+    }
+
+    public void setStepVal(int stepVal) {
+        this.stepVal = stepVal;
     }
 }

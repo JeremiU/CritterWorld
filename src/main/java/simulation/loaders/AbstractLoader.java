@@ -1,5 +1,7 @@
 package simulation.loaders;
 
+import console.Logger;
+
 import java.io.*;
 
 public abstract class AbstractLoader {
@@ -18,7 +20,8 @@ public abstract class AbstractLoader {
             String line;
             while ((line = r.readLine()) != null) readLine(line);
         } catch (IOException ex) {
-            throw new RuntimeException(ex);
+            Logger.error("Error reading file " + ex.getMessage(), "AbstractLoader:readFile", Logger.FLAG_ABSTRACT_LOADER);
+            return;
         }
         afterRead();
     }
